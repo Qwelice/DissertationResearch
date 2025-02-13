@@ -4,8 +4,6 @@ import open3d as o3d
 import torch
 from matplotlib import pyplot as plt
 
-from src.structures.mesh import GenericMesh
-
 
 def visualize_mesh(mesh: GenericMesh, size: float=1.0):
     if not isinstance(mesh, GenericMesh):

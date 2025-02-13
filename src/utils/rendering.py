@@ -1,60 +1,72 @@
-from enum import Enum
-from typing import Union, Optional
+from typing import Union, Optional, List
 
+import numpy as np
 import torch
-from pytorch3d.renderer import MeshRenderer, MeshRasterizer, RasterizationSettings, SoftPhongShader
-from torch import cos, sin
+import open3d as o3d
+from open3d.cpu.pybind.camera import PinholeCameraParameters
+from open3d.cpu.pybind.visualization import ViewControl, RenderOption
 
 from src.structures.mesh import GenericMesh
 
 
-class _RotAxis(Enum):
-    X=0,
-    Y=1,
-    Z=2
+class Renderizer:
+    def __init__(self, img_size: int):
+        self.img_size = img_size
+        self.visualizer = o3d.visualization.Visualizer()
+        self.visualizer.create_window(visible=False, width=self.img_size, height=self.img_size)
+        self.opt: RenderOption = self.visualizer.get_render_option()
+        self.opt.background_color = np.array([0.87, 0.85, 0.88])
+        self.opt.light_on = True
+        self.ctr: ViewControl = self.visualizer.get_view_control()
+        self._angles: Optional[Union[tuple, List]] = None
+        self._translation: Optional[Union[tuple, List]] = None
 
+    def _render_mesh(self, mesh: GenericMesh) -> torch.Tensor:
+        self.visualizer.clear_geometries()
+        mesh = mesh.as_open3d()
+        self.visualizer.add_geometry(mesh)
 
-def _rotate_fov_cam(axis: _RotAxis, angle: float, rad: bool=False,
-                    device: Optional[Union[str, torch.device]]=None) -> torch.Tensor:
-    if device is not None:
-        if isinstance(device, str):
-            device = torch.device(device)
-    radian = torch.tensor([angle], dtype=torch.float32, device=device)
-    if not rad:
-        radian = radian.deg2rad().to(device)
+        self._apply_camera_motion()
 
-    if axis == _RotAxis.X:
-        R = torch.tensor([
-            [1, 0, 0],
-            [0, cos(radian), -sin(radian)],
-            [0, sin(radian), cos(radian)]
-        ], dtype=torch.float32, device=device)
-    elif axis == _RotAxis.Y:
-        R = torch.tensor([
-            [cos(radian), 0, sin(radian)],
-            [0, 1, 0],
-            [-sin(radian), 0, cos(radian)]
-        ], dtype=torch.float32, device=device)
-    else:
-        R = torch.tensor([
-            [cos(radian), -sin(radian), 0],
-            [sin(radian), cos(radian), 0],
-            [0, 0, 1]
-        ])
+        self.visualizer.poll_events()
+        self.visualizer.update_renderer()
 
-    return R
+        img = self.visualizer.capture_screen_float_buffer(do_render=True)
+        img = (torch.tensor(np.asarray(img), dtype=torch.float32) * 255).to(dtype=torch.uint8)
+        return img
 
+    def _apply_camera_motion(self):
+        parameters: PinholeCameraParameters = self.ctr.convert_to_pinhole_camera_parameters()
+        new_extrinsic = parameters.extrinsic.copy()
+        if self._angles is not None:
+            rotation = o3d.geometry.get_rotation_matrix_from_xyz(self._angles)
+            new_extrinsic[:3, :3] = new_extrinsic[:3, :3] @ rotation
+            if self._translation is not None:
+                translation = np.array(self._translation, dtype=np.float32)
+                new_extrinsic[:3, 3] = new_extrinsic[:3, 3] + rotation @ translation
+        elif self._translation is not None:
+            translation = np.array(self._translation, dtype=np.float32)
+            new_extrinsic[:3, 3] = new_extrinsic[:3, 3] + translation
 
-def _build_renderer(image_size: int, cameras, lights, device):
-    raster_settings = RasterizationSettings(image_size=image_size, blur_radius=0, faces_per_pixel=1)
-    shader = SoftPhongShader(device=device, cameras=cameras, lights=lights)
-    rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
-    renderer = MeshRenderer(rasterizer=rasterizer, shader=shader)
-    return renderer
+        parameters.extrinsic = new_extrinsic
+        self.ctr.convert_from_pinhole_camera_parameters(parameters)
 
+    def setup_camera_motion(self,
+                            angles: Optional[Union[tuple, List]]=None,
+                            translation: Optional[Union[tuple, List]]=None,
+                            radians: bool=False):
+        if angles is not None:
+            if len(angles) != 3:
+                raise ValueError('length of angles must be 3')
+            if not radians:
+                angles = torch.tensor(angles, dtype=torch.float32)
+                angles = torch.deg2rad(angles)
+                angles = angles.cpu().tolist()
+        self._angles = angles
+        self._translation = translation
 
-def render_mesh(mesh: GenericMesh,
-                image_size: int,
-                rot: Optional[torch.Tensor]=None,
-                dist: Optional[torch.Tensor]=None):
-    pass
+    def __call__(self, mesh: GenericMesh) -> torch.Tensor:
+        return self._render_mesh(mesh)
+
+    def __del__(self):
+        self.visualizer.destroy_window()

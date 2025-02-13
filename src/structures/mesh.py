@@ -87,7 +87,7 @@ class GenericMesh:
         copied.color = self.color
         return copied
 
-    def cpu(self):
+    def cpu(self: T) -> T:
         return self.copy().to(torch.device('cpu'))
 
     def change_color(self, color: Optional[MeshColor]):
@@ -125,7 +125,7 @@ class GenericMesh:
         mesh.vertices = o3d.utility.Vector3dVector(self.verts.cpu())
         mesh.triangles = o3d.utility.Vector3iVector(self.faces.cpu())
         if self.color is not None:
-            clr = self._get_color().numpy()
+            clr = self._get_color().cpu().numpy()
             mesh.vertex_colors = o3d.utility.Vector3dVector(clr)
         return mesh
 

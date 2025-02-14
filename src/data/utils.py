@@ -22,3 +22,7 @@ class SetMode(Enum):
 class DataType(Enum):
     IMAGE = 'image'
     VOXEL = 'voxel'
+
+
+class SetName(Enum):
+    MODELNET10 = 'modelnet10'

@@ -1,15 +1,18 @@
 import ast
 import os.path
 from os import PathLike
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Any
 
+import numpy as np
 import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from src.data.utils import SetMode
+from src.data.mappers.default import DefaultMapper
+from src.data.transforms import Normalization, VoxelReduction
+from src.data.utils import SetMode, DataType
 from src.structures.mesh import GenericMesh, MeshColor
 from src.utils.rendering import Renderizer
 
@@ -168,20 +171,68 @@ def load_modelnet10_dicts(dataroot: Union[str, PathLike], set_mode: SetMode) -> 
         images = ast.literal_eval(row['images'])
         model = row['model']
         voxel = row['voxel']
-        obj = {
-            'name' : name,
-            'category' : cat,
-            'images' : [os.path.join(dataroot, img) for img in images],
-            'model' : os.path.join(dataroot, 'ModelNet10', model),
-            'voxel' : os.path.join(dataroot, voxel)
-        }
-        objs.append(obj)
+        for image in images:
+            obj = {
+                'name': name,
+                'category': cat,
+                'image': os.path.join(dataroot, image),
+                'model': os.path.join(dataroot, 'ModelNet10', model),
+                'voxel': os.path.join(dataroot, voxel)
+            }
+            objs.append(obj)
 
     return objs
 
 
 class ModelNet10Set(Dataset):
-    def __init__(self, objs, config, mapper):
+    def __init__(self, objs, config, mapper: DefaultMapper, mode: SetMode=SetMode.TRAIN):
         self._objs = objs
         self._mapper = mapper
         self._config = config
+        self._mode = mode
+        self._prepare_transforms()
+
+    def _prepare_transforms(self):
+        import torchvision.transforms.v2 as tf_v2
+        self._mapper.add_transform(DataType.IMAGE, tf_v2.ToImage())
+        if self._config.DATA.USE_NORM:
+            ranges = self._config.DATA.NORM_RANGE
+            self._mapper.add_transform(DataType.IMAGE, Normalization(ranges[0], ranges[1]))
+        if self._config.DATA.USE_RESIZE:
+            self._mapper.add_transform(DataType.IMAGE, tf_v2.Resize(self._config.DATA.RESIZE_SHAPE))
+        if self._config.DATA.USE_VOXEL:
+            if self._config.DATA.VOXEL.USE_REDUCTION:
+                fn = self._config.DATA.VOXEL.REDUCTION
+                rank = self._config.DATA.VOXEL.REDUCTION_RANK
+                self._mapper.add_transform(DataType.VOXEL, VoxelReduction(fn, rank))
+
+    def _build_items(self, data_dicts: List[Dict[str, Any]]) -> List[Dict]:
+        from PIL import Image
+        result = list()
+        for data in data_dicts:
+            obj = dict()
+            image = np.array(Image.open(data['image'], 'r').convert('RGB'))
+            image = torch.tensor(image, dtype=torch.float32)
+            obj[DataType.IMAGE] = image
+            if self._config.data.USE_VOXEL:
+                voxel: torch.Tensor = torch.load(data['voxel'], weights_only=False)
+                voxel.unsqueeze_(0)
+                obj[DataType.VOXEL] = voxel
+            result.append(obj)
+
+        return result
+
+    def __getitem__(self, idx: Union[int, slice]) -> Union[Dict, List[Dict]]:
+        is_single = isinstance(idx, int)
+        data_dicts = self._objs[idx]
+        if is_single:
+            data_dicts = [data_dicts]
+        items = self._build_items(data_dicts)
+        mapped = [self._mapper(item) for item in items]
+        if is_single:
+            return mapped[0]
+        else:
+            return mapped
+
+    def __len__(self):
+        return len(self._objs)

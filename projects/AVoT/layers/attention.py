@@ -109,3 +109,44 @@ class CrossVoxAttentionL2(nn.Module):
         attn = attn.transpose(1, 2).flatten(-2)
         attn = self._out_proj(attn)
         return attn
+
+
+class FeaturesAttentionL2(nn.Module):
+    def __init__(self,
+                 input_dim: int,
+                 seq_size: int,
+                 output_dim: int,
+                 nhead: int,
+                 emb_dim: int,
+                 tie_qk: bool=True):
+        super(FeaturesAttentionL2, self).__init__()
+        if tie_qk:
+            shared = nn.Linear(input_dim, nhead * emb_dim)
+            self._to_queries = shared
+            self._to_keys = shared
+        else:
+            self._to_queries = nn.Linear(input_dim, nhead * emb_dim)
+            self._to_keys = nn.Linear(input_dim, nhead * emb_dim)
+        self._to_values = nn.Linear(input_dim, nhead * emb_dim)
+
+        self._nhead = nhead
+        self._emb_dim = emb_dim
+        self._scale = 1.0 / math.sqrt(emb_dim)
+        self._pos_embedding = nn.Parameter(torch.zeros(1, seq_size, input_dim))
+        self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
+
+        self._out_proj = nn.Linear(nhead * emb_dim, output_dim)
+
+    def forward(self, x):
+        x = x + self._pos_embedding
+        queries = self._to_queries(x).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
+        keys = self._to_keys(x).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
+        values = self._to_values(x).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
+        dist = _l2_distance(queries, keys)
+        qk = torch.softmax(
+            self._alpha * torch.exp(-dist) * self._scale,
+            dim=-1)
+        attn = qk @ values
+        attn = attn.transpose(1, 2).flatten(-2)
+        attn = self._out_proj(attn)
+        return attn

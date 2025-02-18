@@ -12,9 +12,9 @@ def _l2_distance(queries, keys):
 
 
 class VoxelPatchEmbedding(nn.Module):
-    def __init__(self, patch_size: int=4, embed_dim: int=64, norm_layer: bool=True):
+    def __init__(self, in_channels: int, patch_size: int=4, embed_dim: int=64, norm_layer: bool=True):
         super(VoxelPatchEmbedding, self).__init__()
-        self._proj = nn.Conv3d(1, embed_dim, kernel_size=patch_size, stride=patch_size)
+        self._proj = nn.Conv3d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
         if norm_layer:
             self._ln = nn.LayerNorm(embed_dim)
         else:
@@ -30,6 +30,7 @@ class VoxelPatchEmbedding(nn.Module):
 
 class VoxAttentionL2(nn.Module):
     def __init__(self,
+                 in_channels: int,
                  nhead: int,
                  voxel_size: int,
                  patch_size: int,
@@ -49,11 +50,11 @@ class VoxAttentionL2(nn.Module):
         self._nhead = nhead
         self._scale = 1.0 / math.sqrt(emb_dim)
 
-        self._vox_embedding = VoxelPatchEmbedding(patch_size=patch_size, embed_dim=emb_dim)
+        self._vox_embedding = VoxelPatchEmbedding(in_channels=in_channels, patch_size=patch_size, embed_dim=emb_dim)
         self._pos_embedding = nn.Parameter(torch.zeros(1, n_patches, emb_dim))
         self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
 
-        self._out_proj = nn.Linear(nhead * emb_dim, emb_dim)
+        self._out_proj = nn.Linear(nhead * emb_dim, in_channels * patch_size ** 3)
 
     def forward(self, voxel):
         emb = self._vox_embedding(voxel) + self._pos_embedding
@@ -72,6 +73,7 @@ class VoxAttentionL2(nn.Module):
 
 class CrossVoxAttentionL2(nn.Module):
     def __init__(self,
+                 in_channels: int,
                  nhead: int,
                  voxel_size: int,
                  patch_size: int,
@@ -86,12 +88,12 @@ class CrossVoxAttentionL2(nn.Module):
         self._nhead = nhead
         self._scale = 1.0 / math.sqrt(emb_dim)
 
-        self._vox_embedding = VoxelPatchEmbedding(patch_size=patch_size, embed_dim=emb_dim)
+        self._vox_embedding = VoxelPatchEmbedding(in_channels=in_channels, patch_size=patch_size, embed_dim=emb_dim)
         self._pos_embedding = nn.Parameter(torch.zeros(1, n_patches, emb_dim))
         self._des_embedding = nn.Linear(descriptor_size, emb_dim)
         self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
 
-        self._out_proj = nn.Linear(nhead * emb_dim, emb_dim)
+        self._out_proj = nn.Linear(nhead * emb_dim, in_channels * patch_size ** 3)
 
     def forward(self, vox_features, descriptor):
         vox_emb = self._vox_embedding(vox_features) + self._pos_embedding

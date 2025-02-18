@@ -30,19 +30,23 @@ class AdaptiveModulatedConv3d(nn.Module):
                                               kernel_size))
 
     def forward(self, x, w):
-        batch, in_channels, W, H, D = x.shape
+        device = x.device
+        bs, c_in, dep, wid, hgt = x.shape
         filtered = self._filter_fc(w)
         filter_weight = torch.softmax(filtered, dim=-1)
         weighted = torch.einsum('bn,ncoijk->bcoijk', filter_weight, self._bank)
-        modulation = self._mod_fc(w).view(batch, 1, in_channels, 1, 1, 1)
+        modulation = self._mod_fc(w).view(bs, 1, c_in, 1, 1, 1)
         modulated_weights = weighted * modulation
         if self._demodulate:
             demodulation = torch.rsqrt(modulated_weights.pow(2).sum([2, 3, 4, 5], keepdim=True) + self._eps)
             modulated_weights = modulated_weights * demodulation
 
-        modulated_weights = modulated_weights.view(batch * self._out_channels, in_channels, self._kernel_size,
-                                                   self._kernel_size, self._kernel_size)
-        x = x.view(1, batch * in_channels, W, H, D)
-        out = torch.conv3d(x, modulated_weights, stride=self._stride, padding=self._padding, groups=batch)
-        out = out.view(batch, self._out_channels, out.shape[-3], out.shape[-2], out.shape[-1])
+        modulated_weights = modulated_weights.view(bs * self._out_channels,
+                                                   c_in,
+                                                   self._kernel_size,
+                                                   self._kernel_size,
+                                                   self._kernel_size)
+        x = x.view(1, bs * c_in, dep, wid, hgt)
+        out = torch.conv3d(x, modulated_weights, stride=self._stride, padding=self._padding, groups=bs)
+        out = out.view(bs, self._out_channels, out.shape[-3], out.shape[-2], out.shape[-1])
         return out

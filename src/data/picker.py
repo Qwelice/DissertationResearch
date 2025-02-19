@@ -2,7 +2,7 @@ from typing import Optional
 
 from torch.utils.data import Dataset
 
-from src.data.datasets.modelnet10 import ModelNet10Set
+import src.data.datasets.modelnet10  as modelnet10
 from src.data.mappers.default import DefaultMapper
 from src.data.storage import DataStorage
 from src.data.utils import SetName, SetMode
@@ -16,7 +16,7 @@ class DataPicker:
         objs = fn()
         if set_name == SetName.MODELNET10:
             mapper = DefaultMapper()
-            dataset = ModelNet10Set(objs=objs, config=config, mapper=mapper)
+            dataset = modelnet10.ModelNet10Set(objs=objs, config=config, mapper=mapper)
         else:
             dataset = None
         return dataset

@@ -1,8 +1,14 @@
+import os
+from typing import List
+
 import open3d as o3d
 import torch
 from matplotlib import pyplot as plt
+import torchvision.utils as tv_utils
 
-from src.structures.mesh import GenericMesh
+from src.structures.mesh import GenericMesh, MeshColor
+from src.structures.voxel import Voxel
+from src.utils.rendering import Renderizer
 
 
 def visualize_mesh(mesh: GenericMesh, size: float=1.0):
@@ -19,6 +25,22 @@ def visualize_mesh(mesh: GenericMesh, size: float=1.0):
     oriented_bbox.color = (0, 1, 0)
 
     o3d.visualization.draw_geometries([mesh, frame, bbox, oriented_bbox])
+
+
+def visualize_and_save_voxels(voxel_tensor: List[torch.Tensor], save_dir: str, name: str):
+    device = voxel_tensor[0].device
+    renderizer = Renderizer(256)
+    renderizer.setup_camera_motion(angles=(60, 15, 0))
+    images = []
+    for ten in voxel_tensor:
+        voxel = Voxel.create_from_solid_box(voxel_grid=ten, device=device)
+        mesh = voxel.as_mesh()
+        mesh.change_color(MeshColor.GREEN)
+        img = renderizer(mesh)
+        img = img.permute(2, 0, 1).unsqueeze(0)
+        images.append(img)
+    os.makedirs(save_dir, exist_ok=True)
+    tv_utils.save_image(images, os.path.join(save_dir, f'{name}.png'))
 
 
 def visualize_tensor(img: torch.Tensor):

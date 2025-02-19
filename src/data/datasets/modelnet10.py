@@ -7,13 +7,15 @@ import numpy as np
 import pandas as pd
 import torch
 from matplotlib import pyplot as plt
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
 from src.data.mappers.default import DefaultMapper
+from src.data.picker import DataPicker
 from src.data.transforms import Normalization, VoxelReduction
-from src.data.utils import SetMode, DataType
+from src.data.utils import SetMode, DataType, SetName
 from src.structures.mesh import GenericMesh, MeshColor
+from src.utils.configuration import Configuration
 from src.utils.rendering import Renderizer
 
 
@@ -214,7 +216,7 @@ class ModelNet10Set(Dataset):
             image = np.array(Image.open(data['image'], 'r').convert('RGB'))
             image = torch.tensor(image, dtype=torch.float32)
             obj[DataType.IMAGE] = image
-            if self._config.data.USE_VOXEL:
+            if self._config.DATA.USE_VOXEL:
                 voxel: torch.Tensor = torch.load(data['voxel'], weights_only=False)
                 voxel.unsqueeze_(0)
                 obj[DataType.VOXEL] = voxel
@@ -236,3 +238,18 @@ class ModelNet10Set(Dataset):
 
     def __len__(self):
         return len(self._objs)
+
+
+def build_modelnet10_loader(config: Configuration, mode: SetMode):
+    dataset = DataPicker.pick(SetName.MODELNET10, mode, config)
+    if mode == SetMode.TRAIN:
+        loader = DataLoader(dataset=dataset,
+                            batch_size=config.DATA.TRAIN.BATCH_SIZE,
+                            shuffle=config.DATA.TRAIN.SHUFFLE,
+                            num_workers=config.DATA.TRAIN.NUM_WORKERS)
+    else:
+        loader = DataLoader(dataset=dataset,
+                            batch_size=config.DATA.TEST.BATCH_SIZE,
+                            shuffle=config.DATA.TEST.SHUFFLE,
+                            num_workers=config.DATA.TEST.NUM_WORKERS)
+    return loader

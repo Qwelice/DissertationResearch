@@ -4,15 +4,20 @@ import torch
 from torch import nn
 import torchvision.models as tv_models
 
-from layers.synthesis import SingleDecoderLayer, VoxDecoderLayer, SingleEncoderLayer, VoxEncoderLayer, DevoxelizingBlock
-from layers.attention import FeaturesAttentionL2
-from layers.conv import AdaptiveModulatedConv3d
-from src.utils.configuration import Configuration
+from projects.AVoT.layers.synthesis import SingleDecoderLayer, VoxDecoderLayer, SingleEncoderLayer, VoxEncoderLayer, DevoxelizingBlock
+from projects.AVoT.layers.attention import FeaturesAttentionL2
+from projects.AVoT.layers.conv import AdaptiveModulatedConv3d
 
 
 class SynthesisNetwork(nn.Module):
-    def __init__(self, mod_dim: int, descriptor_dim: int):
+    def __init__(self, mod_dim: int, descriptor_dim: int, nhead: int=4, emb_dim: int=128):
         super(SynthesisNetwork, self).__init__()
+        self.extractor = DescriptorFormer(nhead=nhead,
+                                          input_dim=512,
+                                          seq_size=49,
+                                          output_dim=descriptor_dim,
+                                          emb_dim=emb_dim)
+        self.mapper = MappingNetwork(latent_dim=128, descriptor_dim=descriptor_dim)
         self.image_tensor = nn.Parameter(torch.zeros(1, 512, 4, 4, 4, dtype=torch.float32))
         self.input_layer = SingleDecoderLayer(in_channels=512,
                                               out_channels=256,
@@ -52,6 +57,14 @@ class SynthesisNetwork(nn.Module):
                                                bank_size=4,
                                                upsample=True) # (16, 16, 16) -> (32, 32, 32)
 
+    def get_style(self, global_descriptor):
+        style = self.mapper(global_descriptor)
+        return style
+
+    def get_descriptors(self, image):
+        result = self.extractor(image)
+        return result
+
     def forward(self, style, descriptor):
         _, ch, d, w, h = self.image_tensor.shape
         image_voxel = self.image_tensor.expand(style.shape[0], ch, d, w, h).contiguous()
@@ -72,6 +85,8 @@ class DescriptorFormer(nn.Module):
                  tie_qk: bool=True):
         super(DescriptorFormer, self).__init__()
         self.features_extractor = tv_models.resnet34(weights=tv_models.ResNet34_Weights.IMAGENET1K_V1)
+        for p in self.features_extractor.parameters():
+            p.requires_grad = False
         self.features_extractor = nn.Sequential(OrderedDict(list(
             self.features_extractor.named_children())[:-2]))
         self.attention = FeaturesAttentionL2(input_dim=input_dim,
@@ -171,8 +186,13 @@ class PredictorNetwork(nn.Module):
 
 
 class DiscriminatorNet(nn.Module):
-    def __init__(self, descriptor_dim: int):
+    def __init__(self, descriptor_dim: int, nhead: int=4, emb_dim: int=128):
         super(DiscriminatorNet, self).__init__()
+        self.extractor = DescriptorFormer(nhead=nhead,
+                                          input_dim=512,
+                                          seq_size=49,
+                                          output_dim=descriptor_dim,
+                                          emb_dim=emb_dim)
         self.devoxelizers = [
             DevoxelizingBlock(out_channels=32),
             DevoxelizingBlock(out_channels=64),
@@ -218,6 +238,10 @@ class DiscriminatorNet(nn.Module):
                              mod_dim=descriptor_dim)
         ]
 
+    def get_descriptors(self, image):
+        result = self.extractor(image)
+        return result
+
     def forward(self, x, style):
         outs = []
         if style.ndim == 3:
@@ -241,22 +265,11 @@ class DiscriminatorNet(nn.Module):
 
 def model_testing():
     image = torch.empty(8, 3, 224, 224)
-    gen_ext = DescriptorFormer(nhead=4,
-                               input_dim=512,
-                               seq_size=49,
-                               output_dim=128,
-                               emb_dim=256)
-    dis_ext = DescriptorFormer(nhead=4,
-                               input_dim=512,
-                               seq_size=49,
-                               output_dim=128,
-                               emb_dim=256)
-    mapping = MappingNetwork(128, 128)
     gen = SynthesisNetwork(128, 128)
     dis = DiscriminatorNet(128)
-    des_gen = gen_ext(image)
-    des_dis = dis_ext(image)
-    gen_style = mapping(des_gen[1])
+    des_gen = gen.get_descriptors(image)
+    des_dis = dis.get_descriptors(image)
+    gen_style = gen.get_style(des_gen[1])
     dis_style = des_dis[1]
     voxels = gen(gen_style, des_gen[0])
     preds = dis(voxels, dis_style)

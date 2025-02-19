@@ -176,7 +176,8 @@ class DiscriminatorNet(nn.Module):
         self.devoxelizers = [
             DevoxelizingBlock(out_channels=32),
             DevoxelizingBlock(out_channels=64),
-            DevoxelizingBlock(out_channels=128)
+            DevoxelizingBlock(out_channels=128),
+            DevoxelizingBlock(out_channels=256)
         ]
         self.layers = [
             SingleEncoderLayer(in_channels=32,
@@ -188,9 +189,15 @@ class DiscriminatorNet(nn.Module):
                             patch_size_after=1,
                             attn_head=4,
                             attn_emb_dim=512),  # (16, 16, 16) -> (8, 8, 8)
-            SingleEncoderLayer(in_channels=128,
-                               out_channels=256,
-                               downsample=True) # (8, 8, 8) -> (4, 4, 4)
+            VoxEncoderLayer(in_channels=128,
+                            out_channels=256,
+                            voxel_size_after=4,
+                            patch_size_after=1,
+                            attn_head=4,
+                            attn_emb_dim=512),  # (8, 8, 8) -> (4, 4, 4)
+            SingleEncoderLayer(in_channels=256,
+                               out_channels=512,
+                               downsample=True) # (4, 4, 4) -> (2, 2, 2)
         ]
         self.predictors = [
             PredictorNetwork(in_channels=64,
@@ -204,6 +211,10 @@ class DiscriminatorNet(nn.Module):
             PredictorNetwork(in_channels=256,
                              out_channels=128,
                              voxel_size=4,
+                             mod_dim=descriptor_dim),
+            PredictorNetwork(in_channels=512,
+                             out_channels=256,
+                             voxel_size=2,
                              mod_dim=descriptor_dim)
         ]
 
@@ -212,19 +223,18 @@ class DiscriminatorNet(nn.Module):
         if style.ndim == 3:
             style = style.squeeze(1)
         N = len(self.layers)
-        if len(x) - 1 != N:
+        if len(x) != N:
             raise ValueError('the number of inputs must be equal to the number of layers')
         for i in range(N):
             devox = self.devoxelizers[i]
             inp = devox(x[i]) if devox is not None else x[i]
             temp = self.layers[i](inp)
             preds = [self.predictors[i](temp[0], style)]
-            out = (temp[1], preds)
             if i + 1 <= N - 1:
                 for j in range(i + 1, N):
                     temp = self.layers[j](temp[0])
-                    out[1].append(self.predictors[j](temp[0], style))
-            outs.append(out)
+                    preds.append(self.predictors[j](temp[0], style))
+            outs.append(preds)
 
         return outs
 
@@ -249,16 +259,12 @@ def model_testing():
     gen_style = mapping(des_gen[1])
     dis_style = des_dis[1]
     voxels = gen(gen_style, des_gen[0])
-    vox_preds = dis(voxels, dis_style)
-    print('[voxels shapes]\n')
+    preds = dis(voxels, dis_style)
+    print('[voxels - preds shapes]\n')
     for i in range(len(voxels)):
-        print(f'[{i}]\t', voxels[i].shape)
-    print('\n[voxels and preds shapes]\n')
-    for i in range(len(vox_preds)):
-        item = vox_preds[i]
-        preds = item[1]
-        for j in range(len(preds)):
-            print(f'[{i},{j}]\t', item[0].shape, ', ', preds[j].shape)
+        pred = preds[i]
+        for j in range(len(pred)):
+            print(f'[{i}, {j}]\t', voxels[i].shape, '-', pred[j].shape)
 
 
 if __name__ == '__main__':

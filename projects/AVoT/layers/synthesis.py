@@ -5,6 +5,7 @@ from torch import nn
 
 from . import conv as cnv
 from . import attention as atten
+from .attention import VoxAttentionL2
 
 
 class VoxDecoderBlock(nn.Module):
@@ -54,12 +55,43 @@ class VoxDecoderBlock(nn.Module):
 
 
 class VoxelizingBlock(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, activation: str='sigmoid'):
         super(VoxelizingBlock, self).__init__()
         self.conv = nn.Conv3d(in_channels=in_channels, out_channels=1, kernel_size=1, stride=1)
+        if activation == 'sigmoid':
+            self.activation = nn.Sigmoid()
+        else:
+            self.activation = nn.Tanh()
 
     def forward(self, voxel):
-        return self.conv(voxel)
+        raw = self.conv(voxel)
+        voxel = self.activation(raw)
+        return voxel
+
+
+class DevoxelizingBlock(nn.Module):
+    def __init__(self, out_channels: int, num_groups: int=32):
+        super(DevoxelizingBlock, self).__init__()
+        self.conv_1 = nn.Conv3d(in_channels=1,
+                                out_channels=out_channels,
+                                kernel_size=3,
+                                stride=1,
+                                padding=1)
+        self.conv_2 = nn.Conv3d(in_channels=out_channels,
+                                out_channels=out_channels,
+                                kernel_size=3,
+                                stride=1,
+                                padding=1)
+        self.num_groups = math.gcd(out_channels, num_groups)
+        self.norm = nn.GroupNorm(self.num_groups, out_channels)
+        self.activation = nn.LeakyReLU(0.2)
+
+    def forward(self, x):
+        out = self.conv_1(x)
+        out = self.norm(out)
+        out = self.activation(out)
+        out = self.conv_2(out)
+        return out
 
 
 class SingleDecoderLayer(nn.Module):
@@ -84,11 +116,83 @@ class SingleDecoderLayer(nn.Module):
         self._upsample = upsample
 
     def forward(self, x, style):
-        x = self.conv(x, style)
         if self._upsample:
             x = nn.functional.interpolate(x, scale_factor=2, mode='trilinear')
+        x = self.conv(x, style)
         out = self.voxelizing(x)
         return x, out
+
+
+class SingleEncoderLayer(nn.Module):
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 num_groups: int=32,
+                 downsample: bool=True):
+        super(SingleEncoderLayer, self).__init__()
+        self.id_conv = nn.Conv3d(in_channels=in_channels,
+                                 out_channels=out_channels,
+                                 kernel_size=3,
+                                 stride=1,
+                                 padding=1)
+        self.downsample = nn.Conv3d(in_channels=out_channels,
+                                    out_channels=out_channels,
+                                    kernel_size=3,
+                                    stride=2 if downsample else 1,
+                                    padding=1)
+
+        self.num_groups = math.gcd(out_channels, num_groups)
+        self.norm = nn.GroupNorm(self.num_groups, out_channels)
+
+        self.activation = nn.LeakyReLU(0.2)
+
+        self.voxelizing = VoxelizingBlock(out_channels)
+
+    def forward(self, x):
+        x = self.id_conv(x)
+        x = self.norm(x)
+        x = self.activation(x)
+        x = self.downsample(x)
+        vox = self.voxelizing(x)
+        return x, vox
+
+
+class VoxEncoderLayer(nn.Module):
+    def __init__(self,
+                 in_channels: int,
+                 out_channels: int,
+                 voxel_size_after: int,
+                 patch_size_after: int,
+                 num_groups: int=32,
+                 attn_head: int=4,
+                 attn_emb_dim: int=256,
+                 attn_tie_qk: bool=True):
+        super(VoxEncoderLayer, self).__init__()
+        self.id_conv = nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
+        self.downsample = nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=2,
+                                    padding=1)
+        self.num_groups = math.gcd(out_channels, num_groups)
+        self.norm = nn.GroupNorm(self.num_groups, out_channels)
+        self.activation = nn.LeakyReLU(0.2)
+
+        self.attn = VoxAttentionL2(in_channels=out_channels,
+                                   nhead=attn_head,
+                                   voxel_size=voxel_size_after,
+                                   patch_size=patch_size_after,
+                                   emb_dim=attn_emb_dim,
+                                   tie_qk=attn_tie_qk)
+        self.voxelizing = VoxelizingBlock(in_channels=out_channels)
+
+    def forward(self, x):
+        x = self.id_conv(x)
+        x = self.norm(x)
+        x = self.activation(x)
+        x = self.downsample(x)
+        bs, c, d, w, h = x.shape
+        out = self.attn(x)
+        out = out.view(bs, c, d, w, h)
+        vox = self.voxelizing(out)
+        return out, vox
 
 
 class VoxDecoderLayer(nn.Module):

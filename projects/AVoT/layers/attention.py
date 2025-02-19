@@ -49,6 +49,7 @@ class VoxAttentionL2(nn.Module):
         self._emb_dim = emb_dim
         self._nhead = nhead
         self._scale = 1.0 / math.sqrt(emb_dim)
+        self._norm = nn.LayerNorm(emb_dim)
 
         self._vox_embedding = VoxelPatchEmbedding(in_channels=in_channels, patch_size=patch_size, embed_dim=emb_dim)
         self._pos_embedding = nn.Parameter(torch.zeros(1, n_patches, emb_dim))
@@ -58,6 +59,7 @@ class VoxAttentionL2(nn.Module):
 
     def forward(self, voxel):
         emb = self._vox_embedding(voxel) + self._pos_embedding
+        emb = self._norm(emb)
         queries: torch.Tensor = self._to_queries(emb).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
         keys: torch.Tensor = self._to_keys(emb).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
         values: torch.Tensor = self._to_values(emb).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
@@ -87,6 +89,7 @@ class CrossVoxAttentionL2(nn.Module):
         self._emb_dim = emb_dim
         self._nhead = nhead
         self._scale = 1.0 / math.sqrt(emb_dim)
+        self._norm = nn.LayerNorm(emb_dim)
 
         self._vox_embedding = VoxelPatchEmbedding(in_channels=in_channels, patch_size=patch_size, embed_dim=emb_dim)
         self._pos_embedding = nn.Parameter(torch.zeros(1, n_patches, emb_dim))
@@ -97,6 +100,7 @@ class CrossVoxAttentionL2(nn.Module):
 
     def forward(self, vox_features, descriptor):
         vox_emb = self._vox_embedding(vox_features) + self._pos_embedding
+        vox_emb = self._norm(vox_emb)
         des_emb = self._des_embedding(descriptor)
         queries = self._to_queries(vox_emb).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
         keys = self._to_keys(des_emb).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
@@ -132,6 +136,8 @@ class FeaturesAttentionL2(nn.Module):
         self._nhead = nhead
         self._emb_dim = emb_dim
         self._scale = 1.0 / math.sqrt(emb_dim)
+        self._norm = nn.LayerNorm(input_dim)
+
         self._pos_embedding = nn.Parameter(torch.zeros(1, seq_size, input_dim))
         self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
 
@@ -139,6 +145,7 @@ class FeaturesAttentionL2(nn.Module):
 
     def forward(self, x):
         x = x + self._pos_embedding
+        x = self._norm(x)
         queries = self._to_queries(x).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
         keys = self._to_keys(x).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)
         values = self._to_values(x).unflatten(-1, [self._nhead, self._emb_dim]).transpose(1, 2)

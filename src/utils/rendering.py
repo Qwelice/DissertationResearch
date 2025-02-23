@@ -24,6 +24,7 @@ class Renderizer:
     def _render_mesh(self, mesh: GenericMesh) -> torch.Tensor:
         self.visualizer.clear_geometries()
         mesh = mesh.as_open3d()
+        # noinspection PyTypeChecker
         self.visualizer.add_geometry(mesh)
 
         self._apply_camera_motion()

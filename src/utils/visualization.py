@@ -27,17 +27,17 @@ def visualize_mesh(mesh: GenericMesh, size: float=1.0):
     o3d.visualization.draw_geometries([mesh, frame, bbox, oriented_bbox])
 
 
-def visualize_and_save_voxels(voxel_tensor: List[torch.Tensor], save_dir: str, name: str):
-    device = voxel_tensor[0].device
+def visualize_and_save_voxels(voxel_tensors: List[torch.Tensor], save_dir: str, name: str):
+    device = voxel_tensors[0].device
     renderizer = Renderizer(256)
     renderizer.setup_camera_motion(angles=(60, 15, 0))
     images = []
-    for ten in voxel_tensor:
+    for ten in voxel_tensors:
         voxel = Voxel.create_from_solid_box(voxel_grid=ten, device=device)
         mesh = voxel.as_mesh()
         mesh.change_color(MeshColor.GREEN)
         img = renderizer(mesh)
-        img = img.permute(2, 0, 1).unsqueeze(0)
+        img = img.permute(2, 0, 1).unsqueeze(0).cpu()
         images.append(img)
     os.makedirs(save_dir, exist_ok=True)
     tv_utils.save_image(images, os.path.join(save_dir, f'{name}.png'))

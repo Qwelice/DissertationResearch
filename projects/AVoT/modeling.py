@@ -10,7 +10,7 @@ from projects.AVoT.layers.conv import AdaptiveModulatedConv3d
 
 
 class SynthesisNetwork(nn.Module):
-    def __init__(self, mod_dim: int, descriptor_dim: int, nhead: int=4, emb_dim: int=128):
+    def __init__(self, style_dim: int, descriptor_dim: int, nhead: int=4, emb_dim: int=128):
         super(SynthesisNetwork, self).__init__()
         self.extractor = DescriptorFormer(nhead=nhead,
                                           input_dim=512,
@@ -24,7 +24,7 @@ class SynthesisNetwork(nn.Module):
                                               kernel_size=3,
                                               stride=1,
                                               padding=1,
-                                              mod_dim=mod_dim,
+                                              style_dim=style_dim,
                                               bank_size=4)
 
         self.upsampling_1 = VoxDecoderLayer(in_channels=256,
@@ -32,7 +32,7 @@ class SynthesisNetwork(nn.Module):
                                             voxel_size=4,
                                             patch_size=1,
                                             descriptor_size=descriptor_dim,
-                                            mod_dim=mod_dim,
+                                            mod_dim=style_dim,
                                             bank_size=4,
                                             attn_nhead=4,
                                             attn_emb_dim=512,
@@ -43,7 +43,7 @@ class SynthesisNetwork(nn.Module):
                                             voxel_size=8,
                                             patch_size=1,
                                             descriptor_size=descriptor_dim,
-                                            mod_dim=mod_dim,
+                                            mod_dim=style_dim,
                                             bank_size=4,
                                             attn_emb_dim=512,
                                             xattn_emb_dim=512) # (8, 8, 8) -> (16, 16, 16)
@@ -53,7 +53,7 @@ class SynthesisNetwork(nn.Module):
                                                kernel_size=3,
                                                stride=1,
                                                padding=1,
-                                               mod_dim=mod_dim,
+                                               style_dim=style_dim,
                                                bank_size=4,
                                                upsample=True) # (16, 16, 16) -> (32, 32, 32)
 
@@ -141,25 +141,25 @@ class PredictorNetwork(nn.Module):
                                               out_channels=out_channels,
                                               kernel_size=1,
                                               stride=1,
-                                              mod_dim=mod_dim,
+                                              style_dim=mod_dim,
                                               bank_size=4)
         self.conv_2 = AdaptiveModulatedConv3d(in_channels=out_channels,
                                               out_channels=out_channels,
                                               kernel_size=1,
                                               stride=1,
-                                              mod_dim=mod_dim,
+                                              style_dim=mod_dim,
                                               bank_size=4)
         self.conv_3 = AdaptiveModulatedConv3d(in_channels=out_channels,
                                               out_channels=out_channels,
                                               kernel_size=1,
                                               stride=1,
-                                              mod_dim=mod_dim,
+                                              style_dim=mod_dim,
                                               bank_size=4)
         self.conv_4 = AdaptiveModulatedConv3d(in_channels=out_channels,
                                               out_channels=out_channels,
                                               kernel_size=1,
                                               stride=1,
-                                              mod_dim=mod_dim,
+                                              style_dim=mod_dim,
                                               bank_size=4)
         self.residual = nn.Conv3d(in_channels=out_channels,
                                   out_channels=out_channels,
@@ -193,13 +193,13 @@ class DiscriminatorNet(nn.Module):
                                           seq_size=49,
                                           output_dim=descriptor_dim,
                                           emb_dim=emb_dim)
-        self.devoxelizers = [
+        self.devoxelizers = nn.ModuleList([
             DevoxelizingBlock(out_channels=32),
             DevoxelizingBlock(out_channels=64),
             DevoxelizingBlock(out_channels=128),
             DevoxelizingBlock(out_channels=256)
-        ]
-        self.layers = [
+        ])
+        self.layers = nn.ModuleList([
             SingleEncoderLayer(in_channels=32,
                                out_channels=64,
                                downsample=True),  # (32, 32, 32) -> (16, 16, 16)
@@ -218,8 +218,8 @@ class DiscriminatorNet(nn.Module):
             SingleEncoderLayer(in_channels=256,
                                out_channels=512,
                                downsample=True) # (4, 4, 4) -> (2, 2, 2)
-        ]
-        self.predictors = [
+        ])
+        self.predictors = nn.ModuleList([
             PredictorNetwork(in_channels=64,
                              out_channels=32,
                              voxel_size=16,
@@ -236,7 +236,12 @@ class DiscriminatorNet(nn.Module):
                              out_channels=256,
                              voxel_size=2,
                              mod_dim=descriptor_dim)
-        ]
+        ])
+
+    def devoxelize(self, x, idx: int):
+        devox = self.devoxelizers[idx]
+        result = devox(x) if devox is not None else x
+        return result
 
     def get_descriptors(self, image):
         result = self.extractor(image)
@@ -250,8 +255,7 @@ class DiscriminatorNet(nn.Module):
         if len(x) != N:
             raise ValueError('the number of inputs must be equal to the number of layers')
         for i in range(N):
-            devox = self.devoxelizers[i]
-            inp = devox(x[i]) if devox is not None else x[i]
+            inp = self.devoxelize(x[i], i)
             temp = self.layers[i](inp)
             preds = [self.predictors[i](temp[0], style)]
             if i + 1 <= N - 1:

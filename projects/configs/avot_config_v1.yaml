@@ -1,0 +1,40 @@
+DIRS:
+  ENTRY_DIR: 'AVoT'
+  LOG_DIR: 'AVoT/logs'
+  CKPT_DIR: 'AVoT/ckpt'
+  IMG_DIR: 'AVoT/out_images'
+
+DATA:
+  USE_NORM: True
+  NORM_RANGE: [0, 1]
+  USE_RESIZE: True
+  RESIZE_SHAPE: [224, 224]
+  USE_VOXEL: True
+  VOXEL:
+    USE_REDUCTION: True
+    REDUCTION: 'max'
+    REDUCTION_RANK: 3
+  TRAIN:
+    BATCH_SIZE: 16
+    SHUFFLE: True
+    NUM_WORKERS: 2
+  TEST:
+    BATCH_SIZE: 16
+    SHUFFLE: False
+    NUM_WORKERS: 2
+
+TRAINER:
+  ACCELERATOR: 'gpu'
+  MAX_EPOCHS: 10
+  CKPT:
+    MONITOR: 'val_gen_loss'
+    MODE: 'min'
+    SAVE_LAST: True
+    SAVE_TOP_K: 3
+
+MODEL:
+  GENERATOR:
+    LR: 0.003
+  DISCRIMINATOR:
+    LR: 0.003
+  LEVELS_NUM: 4

@@ -3,6 +3,7 @@ import os
 import pytorch_lightning as pl
 import torch.optim
 from pytorch_lightning.utilities.types import OptimizerLRScheduler, STEP_OUTPUT
+from torch.utils.data import DataLoader
 
 from projects.AVoT.modeling import SynthesisNetwork, DiscriminatorNet
 from projects.AVoT.losses import GANLoss, MatchAwareLoss, DiceLoss
@@ -12,9 +13,9 @@ from src.utils.visualization import visualize_and_save_voxels
 
 
 class AVoTLit(pl.LightningModule):
-    def __init__(self, config: Configuration):
+    def __init__(self, config: Configuration, ext_loader: DataLoader):
         super(AVoTLit, self).__init__()
-        self.gen = SynthesisNetwork(mod_dim=256, descriptor_dim=128, nhead=4, emb_dim=512)
+        self.gen = SynthesisNetwork(style_dim=128, descriptor_dim=128, nhead=4, emb_dim=512)
         self.dis = DiscriminatorNet(descriptor_dim=128, nhead=4, emb_dim=512)
         self.gan_loss = GANLoss()
         self.match_loss = MatchAwareLoss()
@@ -24,7 +25,9 @@ class AVoTLit(pl.LightningModule):
         self.gen_lr = config.MODEL.DISCRIMINATOR.LR
         self.levels_num = config.MODEL.LEVELS_NUM
         self.reduction = config.DATA.VOXEL.REDUCTION
-        self.img_dir = config.DIRS.IMG_DIR
+        self.img_dir = os.path.join(os.getenv('outdir'), config.DIRS.IMG_DIR)
+        self.external = ext_loader
+        self._ext_etr = None
 
     def _build_pyramidal_voxels(self, base_voxel):
         outs = []
@@ -37,24 +40,29 @@ class AVoTLit(pl.LightningModule):
                 voxel = torch.nn.functional.avg_pool3d(voxel, kernel_size=3, stride=2, padding=1)
         return outs
 
-    def get_random_batch(self, batch_size):
-        dataset = self.trainer.train_dataloader.dataset
-        indices = torch.randint(0, len(dataset), (batch_size,))
-        batch = dataset[indices]
-        return batch
-
     def configure_optimizers(self) -> OptimizerLRScheduler:
         dis_opt = torch.optim.AdamW(self.dis.parameters(), lr=self.dis_lr)
         gen_opt = torch.optim.AdamW(self.gen.parameters(), lr=self.gen_lr)
         return dis_opt, gen_opt
 
+    def on_train_epoch_start(self) -> None:
+        self._ext_etr = enumerate(self.external)
+
+    def on_validation_epoch_start(self) -> None:
+        self._ext_etr = enumerate(self.external)
+
+    def _get_random_batch(self):
+        _, batch = next(self._ext_etr)
+        return batch
+
     def training_step(self, batch, batch_idx) -> STEP_OUTPUT:
         dis_opt, gen_opt = self.optimizers()
         images = batch[DataType.IMAGE]
-        bs = images.size(0)
+        device = images.device
         voxels = batch[DataType.VOXEL]
-        miss_batch = self.get_random_batch(bs)
-        miss_images = miss_batch[DataType.IMAGE]
+        miss_batch = self._get_random_batch()
+        miss_images = miss_batch[DataType.IMAGE].to(device)
+
         real_voxels = self._build_pyramidal_voxels(voxels)
 
         gen_dstrs = self.gen.get_descriptors(images)
@@ -73,7 +81,7 @@ class AVoTLit(pl.LightningModule):
         dis_opt.zero_grad()
         real_preds = self.dis(real_voxels, dis_style)
         fake_preds = self.dis(fake_voxels_detached, dis_style)
-        real_miss_preds = self.dis(real_preds, dis_miss_style)
+        real_miss_preds = self.dis(real_voxels, dis_miss_style)
         fake_miss_preds = self.dis(fake_voxels_detached, dis_miss_style)
         dis_loss = 0.0
         for i in range(len(real_preds)):
@@ -118,10 +126,10 @@ class AVoTLit(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
         images = batch[DataType.IMAGE]
-        bs = images.size(0)
+        device = images.device
         voxels = batch[DataType.VOXEL]
-        miss_batch = self.get_random_batch(bs)
-        miss_images = miss_batch[DataType.IMAGE]
+        miss_batch = self._get_random_batch()
+        miss_images = miss_batch[DataType.IMAGE].to(device)
         real_voxels = self._build_pyramidal_voxels(voxels)
 
         gen_dstrs = self.gen.get_descriptors(images)
@@ -138,7 +146,7 @@ class AVoTLit(pl.LightningModule):
         # ==================
         real_preds = self.dis(real_voxels, dis_style)
         fake_preds = self.dis(fake_voxels, dis_style)
-        real_miss_preds = self.dis(real_preds, dis_miss_style)
+        real_miss_preds = self.dis(real_voxels, dis_miss_style)
         fake_miss_preds = self.dis(fake_voxels, dis_miss_style)
         dis_loss = 0.0
         for i in range(len(real_preds)):

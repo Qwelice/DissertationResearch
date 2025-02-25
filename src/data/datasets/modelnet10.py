@@ -214,11 +214,11 @@ class ModelNet10Set(Dataset):
         for data in data_dicts:
             obj = dict()
             image = np.array(Image.open(data['image'], 'r').convert('RGB'))
-            image = torch.tensor(image, dtype=torch.float32)
             obj[DataType.IMAGE] = image
             if self._config.DATA.USE_VOXEL:
                 voxel: torch.Tensor = torch.load(data['voxel'], weights_only=False)
                 voxel.unsqueeze_(0)
+                voxel = voxel.to(dtype=torch.float32)
                 obj[DataType.VOXEL] = voxel
             result.append(obj)
 

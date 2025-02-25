@@ -8,7 +8,7 @@ class AdaptiveModulatedConv3d(nn.Module):
                  out_channels: int,
                  kernel_size: int,
                  stride: int,
-                 mod_dim: int,
+                 style_dim: int,
                  demodulate: bool = True,
                  bank_size: int=4,
                  padding: int=0,
@@ -20,8 +20,8 @@ class AdaptiveModulatedConv3d(nn.Module):
         self._eps = eps
         self._out_channels = out_channels
         self._kernel_size = kernel_size
-        self._filter_fc = nn.Linear(mod_dim, bank_size)
-        self._mod_fc = nn.Linear(mod_dim, in_channels)
+        self._filter_fc = nn.Linear(style_dim, bank_size)
+        self._mod_fc = nn.Linear(style_dim, in_channels)
         self._bank = nn.Parameter(torch.randn(bank_size,
                                               out_channels,
                                               in_channels,
@@ -30,7 +30,6 @@ class AdaptiveModulatedConv3d(nn.Module):
                                               kernel_size))
 
     def forward(self, x, w):
-        device = x.device
         bs, c_in, dep, wid, hgt = x.shape
         filtered = self._filter_fc(w)
         filter_weight = torch.softmax(filtered, dim=-1)

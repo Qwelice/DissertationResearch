@@ -24,12 +24,12 @@ class VoxDecoderBlock(nn.Module):
                  xattn_emb_dim: int=512):
         super(VoxDecoderBlock, self).__init__()
         self.conv = cnv.AdaptiveModulatedConv3d(in_channels=in_channels,
-                                            out_channels=out_channels,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1,
-                                            mod_dim=mod_dim,
-                                            bank_size=bank_size)
+                                                out_channels=out_channels,
+                                                kernel_size=3,
+                                                stride=1,
+                                                padding=1,
+                                                style_dim=mod_dim,
+                                                bank_size=bank_size)
         self.attention = atten.VoxAttentionL2(in_channels=out_channels,
                                         nhead=attn_nhead,
                                         voxel_size=voxel_size * 2,
@@ -101,17 +101,17 @@ class SingleDecoderLayer(nn.Module):
                  kernel_size: int,
                  stride: int,
                  padding: int,
-                 mod_dim: int,
+                 style_dim: int,
                  bank_size: int=4,
                  upsample: bool=False):
         super(SingleDecoderLayer, self).__init__()
         self.conv = cnv.AdaptiveModulatedConv3d(in_channels=in_channels,
-                                            out_channels=out_channels,
-                                            kernel_size=kernel_size,
-                                            stride=stride,
-                                            padding=padding,
-                                            mod_dim=mod_dim,
-                                            bank_size=bank_size)
+                                                out_channels=out_channels,
+                                                kernel_size=kernel_size,
+                                                stride=stride,
+                                                padding=padding,
+                                                style_dim=style_dim,
+                                                bank_size=bank_size)
         self.voxelizing = VoxelizingBlock(in_channels=out_channels)
         self._upsample = upsample
 

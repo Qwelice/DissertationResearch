@@ -21,11 +21,11 @@ def insert_default_modelnet10_settings(config: Configuration) -> Configuration:
     config.DATA.USE_VOXEL = True
     config.DATA.VOXEL.USE_REDUCTION = True
     config.DATA.VOXEL.REDUCTION = 'max'
-    config.DATA.VOXEL.REDUCTION_RANK = 3
-    config.DATA.TRAIN.BATCH_SIZE = 32
+    config.DATA.VOXEL.REDUCTION_RANK = 2
+    config.DATA.TRAIN.BATCH_SIZE = 16
     config.DATA.TRAIN.SHUFFLE = True
     config.DATA.TRAIN.NUM_WORKERS = 2
-    config.DATA.TEST.BATCH_SIZE = 32
-    config.DATA.TEST.SHUFFLE = True
+    config.DATA.TEST.BATCH_SIZE = 16
+    config.DATA.TEST.SHUFFLE = False
     config.DATA.TEST.NUM_WORKERS = 2
     return config

@@ -84,7 +84,7 @@ class DescriptorFormer(nn.Module):
                  emb_dim: int,
                  tie_qk: bool=True):
         super(DescriptorFormer, self).__init__()
-        self.features_extractor = tv_models.resnet34(weights=tv_models.ResNet34_Weights.IMAGENET1K_V1)
+        self.features_extractor = tv_models.resnet18(weights=tv_models.ResNet18_Weights.IMAGENET1K_V1)
         for p in self.features_extractor.parameters():
             p.requires_grad = False
         self.features_extractor = nn.Sequential(OrderedDict(list(
@@ -114,9 +114,9 @@ class MappingNetwork(nn.Module):
         self.fc_1 = nn.Linear(latent_dim + descriptor_dim, 32)
         self.fc_2 = nn.Linear(32, 64)
         self.fc_3 = nn.Linear(64, 128)
-        self.fc_4 = nn.Linear(128, 256)
-        self.fc_5 = nn.Linear(256, 256)
-        self.fc_6 = nn.Linear(256, 128)
+        # self.fc_4 = nn.Linear(128, 256)
+        # self.fc_5 = nn.Linear(256, 256)
+        # self.fc_6 = nn.Linear(256, 128)
 
     def forward(self, x):
         device = x.device
@@ -128,9 +128,9 @@ class MappingNetwork(nn.Module):
         out = nn.functional.leaky_relu(self.fc_1(out), self._negative_slope)
         out = nn.functional.leaky_relu(self.fc_2(out), self._negative_slope)
         out = nn.functional.leaky_relu(self.fc_3(out), self._negative_slope)
-        out = nn.functional.leaky_relu(self.fc_4(out), self._negative_slope)
-        out = nn.functional.leaky_relu(self.fc_5(out), self._negative_slope)
-        out = nn.functional.leaky_relu(self.fc_6(out), self._negative_slope)
+        # out = nn.functional.leaky_relu(self.fc_4(out), self._negative_slope)
+        # out = nn.functional.leaky_relu(self.fc_5(out), self._negative_slope)
+        # out = nn.functional.leaky_relu(self.fc_6(out), self._negative_slope)
         return out
 
 

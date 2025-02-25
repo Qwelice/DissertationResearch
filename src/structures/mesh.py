@@ -159,6 +159,7 @@ class GenericMesh:
 
     def to_center(self: T) -> T:
         self.translate(-self.centroid)
+        return self
 
     def voxelized(self, grid_size: int) -> Voxel:
         mesh = self.as_open3d()

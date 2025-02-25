@@ -2,9 +2,8 @@ from typing import Optional, Union
 
 import torch
 from pytorch3d.ops import cubify
+from pytorch3d.structures import Meshes
 from typing_extensions import TypeVar
-
-from src.structures.mesh import GenericMesh
 
 
 T = TypeVar('T')
@@ -29,7 +28,6 @@ class Voxels:
         self.voxel_matrices.to(device=self.device, dtype=dtype)
         return self
 
-    def as_mesh(self) -> GenericMesh:
+    def as_mesh(self) -> Meshes:
         mesh = cubify(self.voxel_matrices, thresh=0.1, device=self.device)
-        mesh = GenericMesh.create_from_mesh(mesh=mesh, device=self.device)
         return mesh

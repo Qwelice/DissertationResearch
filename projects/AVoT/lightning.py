@@ -119,10 +119,13 @@ class AVoTLit(pl.LightningModule):
 
         self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
         self.log('train_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
-        if self.trainer.is_last_batch:
+        if batch_idx == 0 or self.trainer.is_last_batch:
+            visualize_and_save_voxels(real_voxels,
+                                      os.path.join(self.img_dir, 'train', 'real'),
+                                      f'epoch={self.trainer.current_epoch}-bid={batch_idx}', device=device)
             visualize_and_save_voxels(fake_voxels_detached,
-                                      os.path.join(self.img_dir, 'train'),
-                                      f'epoch={self.trainer.current_epoch}')
+                                      os.path.join(self.img_dir, 'train', 'fake'),
+                                      f'epoch={self.trainer.current_epoch}-bid={batch_idx}', device=device)
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
         images = batch[DataType.IMAGE]
@@ -177,7 +180,10 @@ class AVoTLit(pl.LightningModule):
 
         self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
         self.log('train_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
-        if batch_idx < 10:
+        if batch_idx == 0 or batch_idx == self.trainer.num_val_batches[0] - 1:
+            visualize_and_save_voxels(real_voxels,
+                                      os.path.join(self.img_dir, 'valid', 'real'),
+                                      f'epoch={self.trainer.current_epoch}-bid={batch_idx}', device=device)
             visualize_and_save_voxels(fake_voxels,
-                                      os.path.join(self.img_dir, 'valid'),
-                                      f'epoch={self.trainer.current_epoch}-bid={batch_idx}')
+                                      os.path.join(self.img_dir, 'valid', 'fake'),
+                                      f'epoch={self.trainer.current_epoch}-bid={batch_idx}', device=device)

@@ -14,6 +14,10 @@ dependencies = [
 packages = [{include = "dissertationresearch", from = "src"}]
 
 
+[tool.poetry.scripts]
+dr = "dissertationresearch.cli:main"
+
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
@@ -34,6 +38,6 @@ setuptools = { version = "^75.8.1" }
 open3d = { version = "^0.19.0" }
 pytorch-lightning = { version = "^2.5.0" }
 tensorboard = { version = "^2.19.0" }
-pytorch3d = { path = "../External modules/pytorch3d-0.7.8", develop = true }
+# pytorch3d = { path = "../External modules/pytorch3d-0.7.8", develop = true }
 build = { version = "^1.2"}
 typer = { version = "*" }

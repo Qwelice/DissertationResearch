@@ -37,3 +37,4 @@ pytorch-lightning = { version = "^2.5.0" }
 tensorboard = { version = "^2.19.0" }
 pytorch3d = { path = "../External modules/pytorch3d-0.7.8", develop = true }
 build = { version = "^1.2"}
+typer = { version = "*" }

@@ -1,5 +1,5 @@
 import os.path
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
 from typing import Union, Optional, List
 

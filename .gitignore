@@ -1,6 +1,6 @@
 .idea/*
 .git/*
 .venv/*
-data/datasets/*
+data/*
 logs/*
 **/__pycache__/*

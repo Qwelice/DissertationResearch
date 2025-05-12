@@ -21,6 +21,9 @@ def setup_logger(filedir: str | os.PathLike, filename: str, min_log_level: Optio
     file_handler = logging.FileHandler(filepath, encoding='utf-8')
     file_handler.setFormatter(formatter)
 
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
     logger.addHandler(file_handler)
 
     return logger

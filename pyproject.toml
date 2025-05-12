@@ -29,6 +29,9 @@ url = "https://download.pytorch.org/whl/cu124"
 priority = "explicit"
 
 
+[tool.poetry.dev.dependencies]
+pytest = { version = "^7" }
+
 [tool.poetry.dependencies]
 numpy = { version = "<2" }
 torch = { source = "pytorch", version = "2.4.0" }

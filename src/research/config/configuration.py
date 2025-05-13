@@ -45,7 +45,7 @@ class Configuration(dict):
 
 
 def get_yaml_config(config_name: str) -> Configuration:
-    config_dir = list(find_project_root(__file__).glob('src/**/config'))[0]
+    config_dir = "" # list(find_project_root(__file__).glob('src/**/config'))[0]
     config_name = os.path.join(config_dir, f'{config_name}')
     if os.path.exists(f'{config_name}.yaml'):
         config_name = f'{config_name}.yaml'

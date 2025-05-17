@@ -11,11 +11,11 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "dissertationresearch", from = "src"}]
+packages = [{include = "research", from = "src"}]
 
 
 [tool.poetry.scripts]
-dr = "dissertationresearch.cli:main"
+dr = "research.cli:main"
 
 
 [build-system]
@@ -29,7 +29,7 @@ url = "https://download.pytorch.org/whl/cu124"
 priority = "explicit"
 
 
-[tool.poetry.dev.dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = { version = "^7" }
 
 [tool.poetry.dependencies]

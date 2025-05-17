@@ -12,3 +12,5 @@ def _find_project_root(current_path: PathLike = Path.cwd()) -> Path:
         if (path / "src").is_dir():
             return path
     raise FileNotFoundError("src not found. Are you sure this is a right project?")
+
+

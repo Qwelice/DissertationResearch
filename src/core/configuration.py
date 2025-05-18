@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any, List
 
+from core.engine.pipeline import Pipeline
 from core.schemas import Registry, SchemaType, BuildProvider
 
 
@@ -59,7 +60,7 @@ class _Configuration:
     def is_built(self) -> bool:
         return self._is_built
 
-    def build(self, actualize: Optional[bool]=None) -> BuildProvider:
+    def build(self, actualize: Optional[bool]=None) -> Pipeline:
         if actualize is None:
             actualize = False
 
@@ -78,9 +79,9 @@ class _Configuration:
             for schema_name in container._schemas:
                 self._registry.build(schema_name, schema_type)
         self._provider = BuildProvider(self._registry._cached)
-        return self._provider
+        return Pipeline()
 
-    def rebuild(self) -> BuildProvider:
+    def rebuild(self) -> Pipeline:
         self._is_built = False
         return self.build(actualize=True)
 

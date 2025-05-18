@@ -1,12 +1,10 @@
-import pytorch_lightning as pl
-
 from core import Configuration
 from core.schemas import BuildProvider
 
 
-class WrappedModule(pl.LightningModule):
+class Pipeline:
     def __init__(self):
-        super(WrappedModule, self).__init__()
+        pass
 
     @property
     def provider(self) -> BuildProvider:

@@ -44,7 +44,7 @@ class SchemaContainer:
             raise KeyError(f"Schema `{str(self._schema_type.value)}.{schema_name}` is not found")
         return self._schemas[schema_name]
 
-    def build(self, schema_name: str, registry: "Registry") -> Any:
+    def build(self, schema_name: str, registry: "Registry", build_stack: Optional[List[str]] = None) -> Any:
         schema = self.get(schema_name)
         deps = []
         for dep in schema.dependencies:
@@ -59,3 +59,6 @@ class SchemaContainer:
             deps.append(dep_impl)
         schema_impl = schema.strategy(*deps, schema.params) if schema.params else schema.strategy(*deps)
         return schema_impl
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._schemas

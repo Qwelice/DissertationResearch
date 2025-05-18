@@ -6,11 +6,11 @@ from typing import Optional, Dict, Union
 import yaml
 
 
-class Configuration(dict):
+class ConfigObject(dict):
     def __init__(self, init_dict: Optional[Dict]=None):
         init_dict = {} if init_dict is None else init_dict
         init_dict = self._create_configuration_tree(init_dict)
-        super(Configuration, self).__init__(init_dict)
+        super(ConfigObject, self).__init__(init_dict)
 
     def get_plain_keys(self):
         for k, v in self.items():
@@ -34,7 +34,7 @@ class Configuration(dict):
         self[key] = value
 
     @classmethod
-    def load_cfg(cls, cfg_file_path: str) -> 'Configuration':
+    def load_cfg(cls, cfg_file_path: str) -> 'ConfigObject':
         with open(cfg_file_path, 'r') as f:
             cfg = yaml.safe_load(f)
         return cls(cfg)
@@ -44,7 +44,7 @@ class Configuration(dict):
             yaml.dump(self, f)
 
 
-def get_yaml_config(config_name: str) -> Configuration:
+def get_yaml_config(config_name: str) -> ConfigObject:
     config_dir = "" # list(find_project_root(__file__).glob('src/**/config'))[0]
     config_name = os.path.join(config_dir, f'{config_name}')
     if os.path.exists(f'{config_name}.yaml'):
@@ -53,5 +53,5 @@ def get_yaml_config(config_name: str) -> Configuration:
         config_name = f'{config_name}.yml'
     else:
         raise FileNotFoundError()
-    config = Configuration.load_cfg(config_name)
+    config = ConfigObject.load_cfg(config_name)
     return config

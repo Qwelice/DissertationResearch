@@ -8,6 +8,7 @@ class SchemaType(Enum):
     METRIC = "metric"
     REGIME = "regime"
     LOOP = "loop"
+    UTILITY = "utility"
     NONE = "none"
 
     @classmethod
@@ -24,5 +25,7 @@ class SchemaType(Enum):
             return SchemaType.REGIME
         elif value == str(SchemaType.LOOP.value):
             return SchemaType.LOOP
+        elif value == str(SchemaType.UTILITY.value):
+            return SchemaType.UTILITY
         else:
             return SchemaType.NONE

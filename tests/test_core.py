@@ -5,7 +5,8 @@ def test_configuration():
     def tst():
         return { "name": "test" }
 
-    mod = Configuration.build_module("test")
+    Configuration.build()
+    mod = {}
 
     assert isinstance(mod, dict)
     assert "name" in mod.keys()

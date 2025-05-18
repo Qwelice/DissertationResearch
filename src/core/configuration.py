@@ -1,14 +1,15 @@
 from typing import Optional, Dict, Any, List
 
-from core.schemas import Registry, SchemaType
+from core.schemas import Registry, SchemaType, BuildProvider
 
 
 class _Configuration:
     def __init__(self):
         types = self._get_supported_schema_types()
 
-        self._is_built = False
-        self._registry = Registry(types)
+        self._is_built: bool = False
+        self._provider: Optional[BuildProvider] = None
+        self._registry: Registry = Registry(types)
         self._generate_register_methods(types)
         self._generate_dependency_methods(types)
 
@@ -58,7 +59,27 @@ class _Configuration:
     def is_built(self) -> bool:
         return self._is_built
 
-    def build(self):
+    def build(self, actualize: Optional[bool]=None) -> BuildProvider:
+        if actualize is None:
+            actualize = False
+
+        if self.is_built and not actualize:
+            if self._provider is None:
+                raise RuntimeError("Build provider is not initialized")
+            return self._provider
+
         self._is_built = True
+        for schema_type, container in self._registry._containers.items():
+            if container.is_virtual:
+                continue
+            for schema_name in container._schemas:
+                self._registry.build(schema_name, schema_type)
+        self._provider = BuildProvider(self._registry._cached)
+        return self._provider
+
+    def rebuild(self) -> BuildProvider:
+        self._is_built = False
+        return self.build(actualize=True)
+
 
 Configuration = _Configuration()

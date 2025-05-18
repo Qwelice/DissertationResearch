@@ -19,7 +19,7 @@ class BuildProvider:
                     def get_method(self, schema_name: str):
                         return self.get(schema_type, schema_name)
                     return get_method
-                self.__setattr__(method_name, make_get(t))
+                self.__setattr__(method_name, make_get(t).__get__(self))
 
     def get(self, schema_type: Union[str, SchemaType], schema_name: str) -> Any:
         if isinstance(schema_type, SchemaType):

@@ -69,7 +69,10 @@ class _Configuration:
             return self._provider
 
         self._is_built = True
-        for schema_type, container in self._registry._containers.items():
+        from tqdm import tqdm
+        containers = tqdm(self._registry._containers.items(), "schemas building", leave=True)
+        for schema_type, container in containers:
+            containers.set_postfix({ "container": str(schema_type.value).lower() })
             if container.is_virtual:
                 continue
             for schema_name in container._schemas:

@@ -1,1 +1,1 @@
-from .configuration import Configuration
+from core.schemasv2.configuration import Configuration

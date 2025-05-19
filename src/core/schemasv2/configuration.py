@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any, List
 
 from core.engine.pipeline import Pipeline
-from core.schemas import Registry, SchemaType, BuildProvider
+from core.schemasv2 import Registry, SchemaType, BuildProvider
 
 
 class _Configuration:
@@ -71,7 +71,7 @@ class _Configuration:
 
         self._is_built = True
         from tqdm import tqdm
-        containers = tqdm(self._registry._containers.items(), "schemas building", leave=True)
+        containers = tqdm(self._registry._containers.items(), "schemasv2 building", leave=True)
         for schema_type, container in containers:
             containers.set_postfix({ "container": str(schema_type.value).lower() })
             if container.is_virtual:

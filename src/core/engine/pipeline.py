@@ -1,11 +1,7 @@
 from core import Configuration
-from core.schemas import BuildProvider
+from core.schemasv2 import BuildProvider
 
 
 class Pipeline:
     def __init__(self):
         pass
-
-    @property
-    def provider(self) -> BuildProvider:
-        return Configuration.build()

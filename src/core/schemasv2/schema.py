@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Callable, Any, Dict, Optional
 
-from core.schemas import SchemaType
+from core.schemasv2 import SchemaType
 
 
 @dataclass

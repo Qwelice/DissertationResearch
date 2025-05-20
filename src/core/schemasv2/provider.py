@@ -1,6 +1,6 @@
 from typing import Dict, Any, Union
 
-from core.schemas import SchemaType
+from core.schemasv2 import SchemaType
 
 
 class BuildProvider:

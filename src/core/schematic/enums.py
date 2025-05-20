@@ -11,7 +11,8 @@ class SchemaType(Enum):
     SCHEDULER='scheduler'
     METRIC='metric'
     LOOP='loop'
-    TRANSFORM='transform'
+    TRANSFORM='transform',
+    VISUAL="visual"
 
     @classmethod
     def recognize(cls, value: str) -> 'SchemaType':

@@ -1,7 +1,7 @@
 import inspect
 from typing import Dict, List, Callable, Any, Optional
 
-from core.schemas import Schema, SchemaType
+from core.schemasv2 import Schema, SchemaType
 
 
 class SchemaContainer:

@@ -9,6 +9,6 @@ class Schema:
     name: str
     schema_type: SchemaType
     params: Optional[Dict[str, Any]]
-    dependencies: List[str]
+    dependencies: Optional[List[str]]
     strategy: Optional[str]
     output_type: Optional[Type]

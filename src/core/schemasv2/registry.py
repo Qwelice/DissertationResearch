@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional, Callable, List
 
-from core.schemas import SchemaType
-from core.schemas.container import SchemaContainer
+from core.schemasv2 import SchemaType
+from core.schemasv2.container import SchemaContainer
 
 
 class Registry:

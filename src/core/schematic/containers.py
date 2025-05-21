@@ -1,10 +1,45 @@
-from typing import Dict, Optional, Any, List, Callable
+from typing import Dict, Optional, Any, List, Callable, Generic, TypeVar
+from abc import ABC, abstractmethod
 
 from core.schematic import Schema, SchemaStrategy
 from core.schematic.enums import SchemaType
 
+T = TypeVar('T')
 
-class SchemaContainer:
+
+class BaseContainer(ABC, Generic[T]):
+    @property
+    @abstractmethod
+    def entry_count(self) -> int:
+        ...
+
+    @property
+    @abstractmethod
+    def is_empty(self) -> bool:
+        ...
+
+    @abstractmethod
+    def add(self, **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def get(self, **kwargs) -> T:
+        ...
+
+    @abstractmethod
+    def contains(self, **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def update(self, **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def getall(self) -> List[T]:
+        ...
+
+
+class SchemaContainer(BaseContainer[Schema]):
     def __init__(self, schema_type: SchemaType):
         self._schema_type = schema_type
         self._schemas: Dict[str, Schema] = {}
@@ -41,8 +76,12 @@ class SchemaContainer:
         self._schemas[schema.name] = schema
         return True
 
+    def getall(self) -> List[Schema]:
+        return self._schemas.values()
 
-class StrategyContainer:
+
+
+class StrategyContainer(BaseContainer[SchemaStrategy]):
     def __init__(self, schema_type: SchemaType):
         self._schema_type = schema_type
         self._strategies: Dict[str, SchemaStrategy] = {}
@@ -76,3 +115,6 @@ class StrategyContainer:
             raise ValueError(f"unknown strategy: `{strategy.name}`")
         self._strategies[strategy.name] = strategy
         return True
+
+    def getall(self) -> List[SchemaStrategy]:
+        return self._strategies.values()

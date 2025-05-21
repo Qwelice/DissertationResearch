@@ -1,6 +1,6 @@
-from typing import Optional, Dict, Any, List, Type
+from typing import Optional, Dict, Any, List, Type, Callable
 
-from core.schematic import SchemaType
+from core.schematic.enums import SchemaType
 from core.schematic.registry import Registry
 from core.utils import PathLike, ConfigObject
 
@@ -72,8 +72,9 @@ class PipelineConfig:
                         dependencies: Optional[List[str]] = None, strategy: Optional[str] = None):
         self._current_registry.register_schema(schema_name, schema_type, params, dependencies, strategy)
 
-    def register_strategy (self, strategy_name: str, schema_type: SchemaType, schema_link: Optional[str]=None):
-        return self._current_registry.register_strategy(strategy_name, schema_type, schema_link)
+    def register_strategy (self, strategy_name: str, schema_type: SchemaType,
+                           body: Callable[[Any], Any], schema_link: Optional[str]=None):
+        self._current_registry.register_strategy(strategy_name, schema_type, body, schema_link)
 
     def link_strategy (self, schema_name: str, schema_type: SchemaType, strategy_name: str, output_type: Type) -> bool:
         return self._current_registry.use(schema_name, schema_type, strategy_name, output_type)

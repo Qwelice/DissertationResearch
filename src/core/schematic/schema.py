@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List, Type
 
-from core.schematic import SchemaType
+from core.schematic.enums import SchemaType
 
 
 @dataclass

@@ -1,6 +1,6 @@
 from typing import Callable, Any, Optional, Type
 
-from core.schematic import SchemaType
+from core.schematic.enums import SchemaType
 
 
 class SchemaStrategy:

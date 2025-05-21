@@ -1,6 +1,6 @@
 from typing import Dict, Optional, List, Any, Union, Type
 
-from core.schematic import SchemaType
+from core.schematic.enums import SchemaType
 from core.schematic import SchemaContainer, StrategyContainer
 
 

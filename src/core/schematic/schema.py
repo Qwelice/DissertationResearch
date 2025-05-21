@@ -12,3 +12,7 @@ class Schema:
     dependencies: Optional[List[str]]
     strategy: Optional[str]
     output_type: Optional[Type]
+
+    def link_strategy(self, strategy_name, output_type: Type):
+        self.strategy = strategy_name
+        self.output_type = output_type

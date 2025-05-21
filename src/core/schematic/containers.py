@@ -31,6 +31,15 @@ class SchemaContainer:
             raise KeyError(f"unknown schema: `{schema_name}`")
         return self._schemas[schema_name]
 
+    def contains(self, schema_name: str) -> bool:
+        return schema_name in self._schemas
+
+    def update(self, schema: Schema) -> bool:
+        if not self.contains(schema.name):
+            raise ValueError(f"unknown schema: `{schema.name}`")
+        self._schemas[schema.name] = schema
+        return True
+
 
 class StrategyContainer:
     def __init__(self, schema_type: SchemaType):
@@ -57,3 +66,12 @@ class StrategyContainer:
         if strategy_name not in self._strategies:
             raise KeyError(f"unknown strategy: `{strategy_name}`")
         return self._strategies[strategy_name]
+
+    def contains(self, strategy_name: str) -> bool:
+        return strategy_name in self._strategies
+
+    def update(self, strategy: SchemaStrategy) -> bool:
+        if not self.contains(strategy.name):
+            raise ValueError(f"unknown strategy: `{strategy.name}`")
+        self._strategies[strategy.name] = strategy
+        return True

@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List, Any, Union
+from typing import Dict, Optional, List, Any, Union, Type
 
 from core.schematic import SchemaType
 from core.schematic import SchemaContainer, StrategyContainer
@@ -13,6 +13,14 @@ class Registry:
 
     def __init__(self):
         self._storage: Dict[SchemaType, Dict[str, CONTAINERS]] = {}
+
+    @property
+    def _schemas(self) -> SchemaContainer:
+        return self._storage[self._SCHEMA]
+
+    @property
+    def _strategies (self) -> StrategyContainer:
+        return self._storage[self._STRATEGY]
 
     @classmethod
     def _new_storage_item(cls, schema_type) -> dict[str, CONTAINERS]:
@@ -46,3 +54,14 @@ class Registry:
                                                                   schema_link=schema_link,
                                                                   body=fn)
         return decorator
+
+    def use(self, schema_name: str, schema_type: SchemaType, strategy_name, output_type: Type) -> bool:
+        if schema_type not in self._storage:
+            raise TypeError(f"unknown schema type: `{schema_type}`")
+        if not self._schemas.contains(schema_name):
+            raise KeyError(f"unregistered schema: `{schema_name}`")
+        if not self._strategies.contains(strategy_name):
+            raise KeyError(f"unregistered strategy: `{strategy_name}`")
+        schema = self._schemas.get(schema_name)
+        schema.link_strategy(strategy_name, output_type)
+        self._schemas.update(schema)

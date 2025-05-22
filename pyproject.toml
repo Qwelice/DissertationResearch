@@ -1,5 +1,5 @@
 [project]
-name = "dissertationresearch"
+name = "research"
 version = "0.1.0"
 description = ""
 authors = [
@@ -11,11 +11,11 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "dissertationresearch", from = "src"}]
+packages = [{include = "research", from = "src"}]
 
 
 [tool.poetry.scripts]
-dr = "dissertationresearch.cli:main"
+dr = "research.cli:main"
 
 
 [build-system]
@@ -29,7 +29,7 @@ url = "https://download.pytorch.org/whl/cu124"
 priority = "explicit"
 
 
-[tool.poetry.dev.dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = { version = "^7" }
 
 [tool.poetry.dependencies]
@@ -44,3 +44,4 @@ tensorboard = { version = "^2.19.0" }
 # pytorch3d = { path = "../External modules/pytorch3d-0.7.8", develop = true }
 build = { version = "^1.2"}
 typer = { version = "*" }
+easydict = { version = "*" }

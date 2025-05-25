@@ -11,9 +11,11 @@ ROOT_DIR = root_dir()
 
 data_cfg = EasyDict()
 
+data_cfg.set_name = 'modelnet10'
 data_cfg.path_to_data = os.path.join(ROOT_DIR, 'data', 'datasets')
 data_cfg.current_dir = os.path.join(data_cfg.path_to_data, 'ModelNet10')
 data_cfg.anno_file = 'metadata_modelnet10-rd.csv'
+
 
 data_cfg.transforms = EasyDict()
 data_cfg.transforms.train = EasyDict()

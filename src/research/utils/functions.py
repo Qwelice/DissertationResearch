@@ -1,8 +1,12 @@
 import torch
+from torch.utils import data as tdt
+
+from research.data.datasets.modelnet10 import Modelnet10Dataset
+from research.utils.enums import SetType
 
 
-def build_dataloader():
-    pass
+def build_dataloader(exp_config, set_type: SetType) -> tdt.DataLoader:
+    ...
 
 
 def split_into_patches(features: torch.Tensor, patch_size: int, to_flatten: bool=True) -> torch.Tensor:

@@ -1,8 +1,9 @@
 import os.path
 from pathlib import Path
 from typing import Union
+import pandas as pd
 
-PathLike = Union[str, Path]
+PathLike = str
 
 
 def root_dir() -> Path:
@@ -13,9 +14,12 @@ def root_dir() -> Path:
     raise FileNotFoundError("src not found. Are you sure this is a right project?")
 
 
-def join(path: PathLike, *paths) -> Path:
-    return os.path.join(path, paths)
+def read_csv (path_to_df: PathLike) -> pd.DataFrame:
+    if not path_to_df.endswith('.csv'):
+        raise FileExistsError(f'`{path_to_df}` is not csv file')
+    return pd.read_csv(path_to_df)
 
 
-def mkdirs(path: PathLike, exist_ok: bool=True):
-    return os.makedirs(path, exist_ok=exist_ok)
+def read_anno_file (anno_dir: PathLike, anno_file: PathLike) -> pd.DataFrame:
+    pth = os.path.join(anno_dir, anno_file)
+    return read_csv(pth)

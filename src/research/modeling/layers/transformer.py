@@ -25,7 +25,7 @@ class L2TransformerEncoderLayer(nn.Module):
 
     def forward(self, x):
         x = self.norm_1(x)
-        x = x + self.mha(x, x, x)
+        x, _ = x + self.mha(x, x, x)
         x = x + self.fc(self.norm_2(x))
         return x
 
@@ -56,11 +56,11 @@ class L2TransformerDecoderLayer(nn.Module):
         self.norm_3 = nn.LayerNorm(d_model)
 
     def _self_attn_block(self, x):
-        x = self.self_attn(x, x, x)
+        x, _ = self.self_attn(x, x, x) # no need for attention weights
         return x
 
     def _mha_block(self, x, mem):
-        x = self.mha(x, mem, mem)
+        x, _ = self.mha(x, mem, mem) # no need for attention weights
         return x
 
     def forward(self, tgt, memory):

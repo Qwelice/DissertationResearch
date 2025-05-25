@@ -42,16 +42,21 @@ class L2MultiHeadAttention(nn.Module):
         self.v_in_proj = nn.Linear(embed_dim, self.vdim)
 
         self._scale = 1.0 / math.sqrt(embed_dim)
-        self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
+        # self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
         self.out_proj = nn.Linear(self.vdim, embed_dim)
 
-    def forward(self, queries: torch.Tensor, keys: torch.Tensor, values: torch.Tensor):
+    def forward(self, queries: torch.Tensor, keys: torch.Tensor, values: torch.Tensor,
+                attn_mask: Optional[torch.Tensor]=None):
         q = self.q_in_proj(queries).unflatten(-1, [self.num_heads, self.embed_dim // self.num_heads]).transpose(1, 2)
         k = self.k_in_proj(keys).unflatten(-1, [self.num_heads, self.kdim // self.num_heads]).transpose(1, 2)
         v = self.v_in_proj(values).unflatten(-1, [self.num_heads, self.vdim // self.num_heads]).transpose(1, 2)
         attn_dist = _qk_l2_distance(q, k)
-        attn_weights = torch.softmax(self._alpha * (-attn_dist) * self._scale, dim=-1)
+
+        if attn_mask is not None:
+            attn_dist = attn_dist.masked_fill(attn_mask, float('inf'))
+
+        attn_weights = torch.softmax(-attn_dist * self._scale, dim=-1)
         attention = attn_weights @ v
         attention = attention.transpose(1, 2).flatten(-2)
         attn_out = self.out_proj(attention)
-        return attn_out
+        return attn_out, attn_weights

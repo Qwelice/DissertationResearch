@@ -50,7 +50,7 @@ class L2MultiHeadAttention(nn.Module):
         k = self.k_in_proj(keys).unflatten(-1, [self.num_heads, self.kdim // self.num_heads]).transpose(1, 2)
         v = self.v_in_proj(values).unflatten(-1, [self.num_heads, self.vdim // self.num_heads]).transpose(1, 2)
         attn_dist = _qk_l2_distance(q, k)
-        attn_weights = torch.softmax(self._alpha * torch.exp(-attn_dist) * self._scale, dim=-1)
+        attn_weights = torch.softmax(self._alpha * (-attn_dist) * self._scale, dim=-1)
         attention = attn_weights @ v
         attention = attention.transpose(1, 2).flatten(-2)
         attn_out = self.out_proj(attention)

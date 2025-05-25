@@ -1,6 +1,5 @@
 import os.path
 from pathlib import Path
-from typing import Union
 import pandas as pd
 
 PathLike = str

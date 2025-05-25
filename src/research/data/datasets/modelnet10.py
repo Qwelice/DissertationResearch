@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Union
+from typing import Optional, Dict, Union
 from dataclasses import dataclass
 import ast
 import os
@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from research.utils.enums import SetType, recognize_set_type
 from research.utils.io import read_anno_file
-from torch import nn
 from torch.utils import data as tdt
 import torchvision.transforms.v2 as tf_v2
 

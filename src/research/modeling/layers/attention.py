@@ -8,7 +8,7 @@ from torch import nn
 def _qk_l2_distance(queries: torch.Tensor, keys: torch.Tensor):
     q = queries.pow(2).sum(dim=-1, keepdim=True)
     k = keys.pow(2).sum(dim=-1, keepdim=True)
-    dist = q + k - 2 * torch.matmul(queries, keys.transpose(-2, -1))
+    dist = q + k.transpose(-2, -1) - 2 * torch.matmul(queries, keys.transpose(-2, -1))
     return dist
 
 

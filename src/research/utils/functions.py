@@ -5,7 +5,7 @@ from research.data.datasets.modelnet10 import Modelnet10Dataset
 from research.utils.enums import SetType
 
 
-def build_dataloader(exp_config, set_type: SetType) -> tdt.DataLoader:
+def build_dataloader(experiment_config, set_type: SetType) -> tdt.DataLoader:
     ...
 
 

@@ -35,4 +35,9 @@ experiment_cfg.tensorflow.log_dir = os.path.join(ROOT_DIR, 'logs', 'api', 'tenso
 experiment_cfg.tensorflow.experiment_name = 'GAMMA-modelnet10'
 experiment_cfg.tensorflow.version = '0.1.0'
 
+# Checkpoint params
+experiment_cfg.ckpt_dir = os.path.join(ROOT_DIR, 'models')
+experiment_cfg.monitor = 'val_loss'
+experiment_cfg.mode = 'min'
+
 experiment_cfg.data = data_cfg

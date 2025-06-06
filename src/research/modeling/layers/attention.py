@@ -42,7 +42,6 @@ class L2MultiHeadAttention(nn.Module):
         self.v_in_proj = nn.Linear(embed_dim, self.vdim)
 
         self._scale = 1.0 / math.sqrt(embed_dim)
-        # self._alpha = nn.Parameter(torch.tensor(1.0, dtype=torch.float32))
         self.out_proj = nn.Linear(self.vdim, embed_dim)
 
     def forward(self, queries: torch.Tensor, keys: torch.Tensor, values: torch.Tensor,

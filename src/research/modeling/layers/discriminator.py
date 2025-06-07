@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 from torch import nn
 
@@ -50,12 +52,26 @@ class VoxelAdapter(nn.Module):
 
 
 class DiscriminatorLayer(nn.Module):
-    def __init__(self, conv: nn.Conv2d, self_atten: L2MultiHeadAttention):
+    """
+    DO NOT FORGET: PATCH SIZE YOU'RE USING FOR DOWNSAMPLED FEATURES!
+    """
+    def __init__(self, patch_size: int, conv: nn.Conv2d,
+                 self_atten: Optional[L2MultiHeadAttention]=None, activation: Optional[str]=None):
         super(DiscriminatorLayer, self).__init__()
-        self.downsample = nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=2, padding=1)
+        self.patch_size = patch_size
         self.conv = conv
         self.self_atten = self_atten
+        if activation is None:
+            activation = 'relu'
+        if activation.lower() == 'relu':
+            self.activation = nn.ReLU()
+        else:
+            self.activation = nn.GELU()
 
-    def forward(self, x, t_local):
-        if self.downsample:
-            x = self.downsample(x)
+    def forward(self, x):
+        x = self.conv(x)
+        if self.self_atten is not None:
+            x = split_into_patches(x, patch_size=self.patch_size)
+            x = self.self_atten(x, x, x)
+            x = merge_patches(x, self.patch_size)
+        return x

@@ -16,6 +16,7 @@ class Generator(nn.Module):
         self.layers = self._init_layers_()
         self.image_encoder = ImageEncoder(config)
         self.mapping_net = MappingNet(config)
+        self.base_features = self._init_base_features_()
 
     def _init_base_features_(self) -> nn.Parameter:
         cfg = self.config.generator
@@ -23,6 +24,7 @@ class Generator(nn.Module):
         base_shape = cfg.base_features['shape']
         base_features = nn.Parameter(torch.zeros(1, base_shape))
         base_features.apply_(init_fn)
+        return base_features
 
     def _init_layers_(self) -> nn.ModuleList:
         cfg = self.config.generator
@@ -69,7 +71,9 @@ class Generator(nn.Module):
         descriptor = self.image_encoder(x)
         return descriptor
 
-    def forward(self, x, style, t_local):
+    def forward(self, style, t_local):
+        bs, _ = style.shape
+        x = self.base_features.expand(bs, -1, -1, -1).contiguous()
         outs = []
         for layer in self.layers:
             out, x = layer(x, style, t_local)

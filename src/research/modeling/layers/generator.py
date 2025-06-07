@@ -40,6 +40,9 @@ class VoxelFormer(nn.Module):
 
 
 class GeneratorLayer(nn.Module):
+    """
+    DO NOT FORGET: INPUT SIZE YOU'RE USING FOR FEATURES ON BEFORE UPSAMPLING!
+    """
     def __init__(self,
                  input_size: int,
                  patch_size: int,
@@ -47,10 +50,9 @@ class GeneratorLayer(nn.Module):
                  voxel_former: VoxelFormer,
                  self_atten: Optional[L2MultiHeadAttention]=None,
                  cross_atten: Optional[L2MultiHeadAttention]=None,
-                 upsample_input: bool=False,
                  size_threshold: int=32):
         super(GeneratorLayer, self).__init__()
-        self.input_size = (1 + upsample_input) * input_size
+        self.input_size = 2 * input_size
         self.patch_size = patch_size
         self.to_tokens = nn.Linear(self.input_size, self_atten.embed_dim)
         self.from_tokens = nn.Linear(self_atten.embed_dim, self.input_size)
@@ -58,7 +60,6 @@ class GeneratorLayer(nn.Module):
         self.voxel_former = voxel_former
         self.self_atten = self_atten
         self.cross_atten = cross_atten
-        self.upsample = upsample_input
         self.threshold = size_threshold
 
     def _self_attention(self, x):
@@ -72,8 +73,7 @@ class GeneratorLayer(nn.Module):
         return self.cross_atten(x, t_local, t_local)
 
     def forward(self, x, style, t_local):
-        if self.upsample:
-            x = nn.functional.upsample(x, scale_factor=2, mode='bicubic')
+        x = nn.functional.upsample(x, scale_factor=2, mode='bicubic')
         B, _, H, W = x.size()
         x = self.adaconv(x, style)
         x = split_into_patches(x, self.patch_size)

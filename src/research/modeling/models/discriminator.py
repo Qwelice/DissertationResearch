@@ -13,7 +13,23 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.config = config
         self.layers = self._init_layers_()
+        self.predictors = self._init_predictors()
+        assert len(self.layers) == len(self.predictors), 'discriminator layers count must match to predictors count'
         self.image_encoder = ImageEncoder(config)
+
+    def _init_predictors(self) -> nn.ModuleList:
+        cfg = self.config.discriminator
+        predictors = []
+        for layer in cfg.predictors:
+            tp = layer['type']
+            init_fn = LayerInitMap[tp]
+            params = layer['params']
+            module = init_fn(**params)
+            if module is None:
+                raise ValueError('module cannot be None')
+            else:
+                predictors.append(module)
+        return nn.ModuleList(predictors)
 
     def _init_layers_(self) -> nn.ModuleList:
         cfg = self.config.discriminator
@@ -53,4 +69,13 @@ class Discriminator(nn.Module):
         return descriptor
 
     def forward(self, x, t_local):
-        preds = []
+        outs = []
+        N = len(self.layers)
+        for i in range(N):
+            phi = self.layers[i](x[i])
+            preds = []
+            for j in range(i, N):
+                psi = self.predictors[j](phi, t_local)
+                preds.append(psi)
+            outs.append(preds)
+        return outs

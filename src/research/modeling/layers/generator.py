@@ -50,9 +50,10 @@ class GeneratorLayer(nn.Module):
                  upsample_input: bool=False,
                  size_threshold: int=32):
         super(GeneratorLayer, self).__init__()
+        self.input_size = (1 + upsample_input) * input_size
         self.patch_size = patch_size
-        self.to_tokens = nn.Linear(input_size, self_atten.embed_dim)
-        self.from_tokens = nn.Linear(self_atten.embed_dim, input_size)
+        self.to_tokens = nn.Linear(self.input_size, self_atten.embed_dim)
+        self.from_tokens = nn.Linear(self_atten.embed_dim, self.input_size)
         self.adaconv = adaconv
         self.voxel_former = voxel_former
         self.self_atten = self_atten
@@ -74,7 +75,6 @@ class GeneratorLayer(nn.Module):
         if self.upsample:
             x = nn.functional.upsample(x, scale_factor=2, mode='bicubic')
         B, _, H, W = x.size()
-        C = self.adaconv.out_channels
         x = self.adaconv(x, style)
         x = split_into_patches(x, self.patch_size)
         pos = get_2d_sincos_pos_embed(x.size(1), x.size(2), x.size(3))

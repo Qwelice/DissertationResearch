@@ -9,7 +9,7 @@ class L2TransformerEncoderLayer(nn.Module):
     def __init__(self, d_model: int, nhead: int, dim_feedforward: int,
                  activation: Optional[str]=None, tiq_qk: bool=True):
         super(L2TransformerEncoderLayer, self).__init__()
-        if activation == 'relu' or activation is None:
+        if activation is None or activation.lower() == 'relu':
             self.activation = nn.ReLU()
         else:
             self.activation = nn.GELU()

@@ -5,7 +5,7 @@ from torch import nn
 
 from research.modeling.models.image_encoder import ImageEncoder
 from research.modeling.models.mapping_net import MappingNet
-from research.utils.constants import LayerInitMap, WeightsInitMap
+from research.utils.constants import LayerInitMap, WeightsInitMap, ParametersInitMap
 from research.utils.enums import LayerType
 
 
@@ -20,10 +20,11 @@ class Generator(nn.Module):
 
     def _init_base_features_(self) -> nn.Parameter:
         cfg = self.config.generator
-        init_fn = WeightsInitMap[cfg.base_features['weights_init']]
+        init_fn = ParametersInitMap[cfg.base_features['weights_init']]
+        init_params = cfg.base_features['weights_init_params']
         base_shape = cfg.base_features['shape']
-        base_features = nn.Parameter(torch.zeros(1, base_shape))
-        base_features.apply_(init_fn)
+        base_features = nn.Parameter(torch.zeros(1, *base_shape))
+        init_fn(base_features, **init_params)
         return base_features
 
     def _init_layers_(self) -> nn.ModuleList:
@@ -63,8 +64,8 @@ class Generator(nn.Module):
                 raise ValueError(f'unknown parameter: {tp}')
         return parameters
 
-    def get_style(self, t_local):
-        style = self.mapping_net(t_local)
+    def get_style(self, t_global):
+        style = self.mapping_net(t_global)
         return style
 
     def get_descriptor(self, x):
@@ -73,7 +74,8 @@ class Generator(nn.Module):
 
     def forward(self, style, t_local):
         bs, _ = style.shape
-        x = self.base_features.expand(bs, -1, -1, -1).contiguous()
+        device = style.device
+        x = self.base_features.expand(bs, -1, -1, -1).contiguous().to(device)
         outs = []
         for layer in self.layers:
             out, x = layer(x, style, t_local)

@@ -1,6 +1,6 @@
 from easydict import EasyDict
 
-from research.utils.enums import LayerType, ConversionType
+from research.utils.enums import LayerType, ConversionType, WeightsInitType
 
 # L2Attention params: <embed_dim: int,
 #                      num_heads: int,
@@ -77,7 +77,7 @@ model_cfg.image_encoder.layers = [
         },
         'validate': {
             'input': (3, 224, 224),
-            'output': (512, 28, 28)
+            'output': (512, 7, 7)
         }
     },
     {
@@ -90,18 +90,18 @@ model_cfg.image_encoder.layers = [
             'padding': 1
         },
         'validate': {
-            'input': (512, 28, 28),
-            'output': (DESCRIPTOR_DIM, 28, 28)
+            'input': (512, 7, 7),
+            'output': (DESCRIPTOR_DIM, 7, 7)
         }
     },
     {
         'type': LayerType.AdapterLayer,
         'params': {
             'conversion_type': ConversionType.split,
-            'patch_size': 4
+            'patch_size': 1
         },
         'validate': {
-            'input': (DESCRIPTOR_DIM, 28, 28),
+            'input': (DESCRIPTOR_DIM, 7, 7),
             'output': (49, DESCRIPTOR_DIM)
         }
     },
@@ -131,11 +131,19 @@ model_cfg.mapping_net.layers = [
         }
     },
     {
+        'type': LayerType.ReLU,
+        'params': {}
+    },
+    {
         'type': LayerType.Linear,
         'params': {
             'in_features': 256,
             'out_features': 512
         }
+    },
+    {
+        'type': LayerType.ReLU,
+        'params': {}
     },
     {
         'type': LayerType.Linear,
@@ -148,19 +156,159 @@ model_cfg.mapping_net.layers = [
 
 
 model_cfg.generator = EasyDict()
+model_cfg.generator.base_features = {
+    'weights_init': WeightsInitType.xavier_normal,
+    'weights_init_params': {},
+    'shape': (4, 4, 4)
+}
 model_cfg.generator.layers = [
     {
         'type': LayerType.GeneratorLayer,
         'params': {
-            'upsample_input': True
+            'input_size': 4,
+            'patch_size': 2,
+            'emb_dim': DESCRIPTOR_DIM
         },
         'layers': [
             {
                 'type': LayerType.AdaConv2d,
                 'params': {
-
+                    'in_channels': 4,
+                    'out_channels': 8,
+                    'style_dim': STYLE_DIM,
+                    'kernel_size': 3,
+                    'stride': 1,
+                    'padding': 1,
+                    'bank_size': 4
+                },
+                'validate': {
+                    'input': (4, 8, 8),
+                    'output': (8, 8, 8)
+                }
+            },
+            {
+                'type': LayerType.VoxelFormer,
+                'params': {
+                    'input_size': DESCRIPTOR_DIM,
+                    'seq_size': 16,
+                    'dim_size': DESCRIPTOR_DIM,
+                    'nhead': 8,
+                    'dim_feedforward': 2048,
+                    'tiq_qk': True
                 }
             }
         ]
+    },
+    {
+        'type': LayerType.GeneratorLayer,
+        'params': {
+            'input_size': 8,
+            'patch_size': 2
+        },
+        'layers': [
+            {
+                'type': LayerType.AdaConv2d,
+                'params': {
+                    'in_channels': 8,
+                    'out_channels': 16,
+                    'style_dim': STYLE_DIM,
+                    'kernel_size': 3,
+                    'stride': 1,
+                    'padding': 1,
+                    'bank_size': 4
+                },
+                'validate': {
+                    'input': (8, 16, 16),
+                    'output': (16, 16, 16)
+                }
+            },
+            {
+                'type': LayerType.SelfL2Attention,
+                'params': {
+                    'embed_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    'tie_qk': True
+                }
+            },
+            {
+                'type': LayerType.CrossL2Attention,
+                'params': {
+                    'embed_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    'tie_qk': True
+                }
+            },
+            {
+                'type': LayerType.VoxelFormer,
+                'params': {
+                    'input_size': DESCRIPTOR_DIM,
+                    'seq_size': 64,
+                    'dim_size': DESCRIPTOR_DIM,
+                    'nhead': 8,
+                    'dim_feedforward': 2048,
+                    'tiq_qk': True
+                }
+            }
+        ],
+        'validate': {
+            'input': (8, 8, 8),
+            'output': (16, 16, 16)
+        }
+    },
+    {
+        'type': LayerType.GeneratorLayer,
+        'params': {
+            'input_size': 16,
+            'patch_size': 4
+        },
+        'layers': [
+            {
+                'type': LayerType.AdaConv2d,
+                'params': {
+                    'in_channels': 16,
+                    'out_channels': 32,
+                    'style_dim': STYLE_DIM,
+                    'kernel_size': 3,
+                    'stride': 1,
+                    'padding': 1,
+                    'bank_size': 4
+                },
+                'validate': {
+                    'input': (16, 32, 32),
+                    'output': (32, 32, 32)
+                }
+            },
+            {
+                'type': LayerType.SelfL2Attention,
+                'params': {
+                    'embed_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    'tie_qk': True
+                }
+            },
+            {
+                'type': LayerType.CrossL2Attention,
+                'params': {
+                    'embed_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    'tie_qk': True
+                }
+            },
+            {
+                'type': LayerType.VoxelFormer,
+                'params': {
+                    'input_size': DESCRIPTOR_DIM,
+                    'seq_size': 64,
+                    'dim_size': DESCRIPTOR_DIM,
+                    'nhead': 8,
+                    'dim_feedforward': 2048,
+                    'tiq_qk': True
+                }
+            }
+        ],
+        'validate': {
+            'input': (16, 16, 16),
+            'output': (32, 32, 32)
+        }
     }
 ]

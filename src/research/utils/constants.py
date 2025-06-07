@@ -18,7 +18,6 @@ LayerInitMap = {
     LayerType.DiscriminatorLayer: discriminator_layer,
     LayerType.VoxelFormer: voxel_former,
     LayerType.Predictor: predictor,
-    LayerType.VoxelAdapter: voxel_adapter,
     LayerType.SelfL2Attention: l2attention,
     LayerType.CrossL2Attention: l2attention,
     LayerType.SelfAttention: attention,
@@ -33,4 +32,13 @@ WeightsInitMap = {
     WeightsInitType.xavier_normal: init_weights_xavier_normal,
     WeightsInitType.kaiming_uniform: init_weights_kaiming_uniform,
     WeightsInitType.kaiming_normal: init_weights_kaiming_normal
+}
+
+ParametersInitMap = {
+    WeightsInitType.normal: init.normal_,
+    WeightsInitType.uniform: init.uniform_,
+    WeightsInitType.xavier_uniform: init.xavier_uniform_,
+    WeightsInitType.xavier_normal: init.xavier_normal_,
+    WeightsInitType.kaiming_uniform: init.kaiming_uniform_,
+    WeightsInitType.kaiming_normal: init.kaiming_normal_
 }

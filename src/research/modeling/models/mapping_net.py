@@ -13,18 +13,18 @@ class MappingNet(nn.Module):
         self.latent_dim = config.latent_dim
 
     def _init_layers_(self):
-        cfg = self.config.image_encoder
-        image_encoder = []
+        cfg = self.config.mapping_net
+        mapping_net = []
         for layer in cfg.layers:
             tp: LayerType = layer['type']
             params = layer['params']
             init_fn = LayerInitMap[tp]
-            module = init_fn(params)
+            module = init_fn(**params)
             if module is None:
                 raise ValueError('module cannot be None')
             else:
-                image_encoder.append(module)
-        return nn.Sequential(*image_encoder)
+                mapping_net.append(module)
+        return nn.Sequential(*mapping_net)
 
     def forward(self, x):
         device = x.device

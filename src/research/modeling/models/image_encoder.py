@@ -17,7 +17,7 @@ class ImageEncoder(nn.Module):
             tp: LayerType = layer['type']
             params = layer['params']
             init_fn = LayerInitMap[tp]
-            module = init_fn(params)
+            module = init_fn(**params)
             if module is None:
                 raise ValueError('module cannot be None')
             else:

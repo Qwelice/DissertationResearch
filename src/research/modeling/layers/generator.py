@@ -6,7 +6,7 @@ from torch import nn
 from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.attention import L2MultiHeadAttention
 from research.modeling.layers.transformer import L2TransformerDecoderLayer
-from research.utils.functions import split_into_patches, get_2d_sincos_pos_embed, merge_patches
+from research.utils.functions import split_into_patches, get_2d_sin_cos_pos_embed, merge_patches
 
 
 class VoxelFormer(nn.Module):
@@ -50,12 +50,18 @@ class GeneratorLayer(nn.Module):
                  voxel_former: VoxelFormer,
                  self_atten: Optional[L2MultiHeadAttention]=None,
                  cross_atten: Optional[L2MultiHeadAttention]=None,
+                 emb_dim: Optional[int]=None,
                  size_threshold: int=32):
         super(GeneratorLayer, self).__init__()
         self.input_size = 2 * input_size
         self.patch_size = patch_size
-        self.to_tokens = nn.Linear(self.input_size, self_atten.embed_dim)
-        self.from_tokens = nn.Linear(self_atten.embed_dim, self.input_size)
+        self.emb_dim = emb_dim if self_atten is None else self_atten.embed_dim
+
+        assert self.emb_dim is not None, ('if self-attention or cross-attention is None'
+                                          ' embedding dim must be int, but got None')
+
+        self.to_tokens = nn.Linear(self.input_size, self.emb_dim)
+        self.from_tokens = nn.Linear(self.emb_dim, self.input_size)
         self.adaconv = adaconv
         self.voxel_former = voxel_former
         self.self_atten = self_atten
@@ -76,10 +82,10 @@ class GeneratorLayer(nn.Module):
         x = nn.functional.upsample(x, scale_factor=2, mode='bicubic')
         B, _, H, W = x.size()
         x = self.adaconv(x, style)
+        pos = get_2d_sin_cos_pos_embed(x.size(2), x.size(3), x.size(1)).unsqueeze(0).expand(B, -1, -1)
         x = split_into_patches(x, self.patch_size)
-        pos = get_2d_sincos_pos_embed(x.size(1), x.size(2), x.size(3))
         x = self.to_tokens(x)
-        x = x + pos.transpose(1, 0)
+        x = x + pos.transpose(2, 1)
         if style.ndim == 2:
             style = style.unsqueeze(1)
         styled = torch.cat([x, style], dim=1)

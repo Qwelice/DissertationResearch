@@ -23,9 +23,13 @@ class L2TransformerEncoderLayer(nn.Module):
                                 self.activation,
                                 nn.Linear(dim_feedforward, d_model))
 
+    def _self_attn(self, x):
+        x, _ = self.mha(x, x, x)
+        return x
+
     def forward(self, x):
         x = self.norm_1(x)
-        x, _ = x + self.mha(x, x, x)
+        x = x + self._self_attn(x)
         x = x + self.fc(self.norm_2(x))
         return x
 

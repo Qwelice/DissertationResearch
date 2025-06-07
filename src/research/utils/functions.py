@@ -69,32 +69,48 @@ def merge_patches(patches: torch.Tensor, patch_size: int, image_size: Optional[T
     return output
 
 
-def get_2d_sincos_pos_embed(height: int, width: int, dim: int, temperature: float = 10000.):
+def get_1d_sin_cos_positional_encoding(seq_len: int, d_model: int) -> torch.Tensor:
     """
-    Creates 2D sin-cos positional encodings shaped of (height * width, dim)
+    Creates sinusoidal positional embeddings for 1D sequences.
 
-    :param height: image height
-    :param width: image width
-    :param dim: dimension of positional vector (must be even)
-    :param temperature: frequency factor (10000.0 as default)
-    :return: tensor shaped of (height * width, dim)
+    Args:
+        seq_len: length of the sequence (e.g., number of tokens or patches)
+        d_model: embedding dimension
+
+    Returns:
+        Tensor of shape (seq_len, d_model)
     """
-    if dim % 4 != 0:
-        raise ValueError("dim must be a multiple of 4 (because x and y encodes along sin and cos)")
+    position = torch.arange(seq_len, dtype=torch.float32).unsqueeze(1)  # (seq_len, 1)
+    div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))  # (d_model/2)
 
-    y_pos = torch.arange(height, dtype=torch.float32).unsqueeze(1)  # (H, 1)
-    x_pos = torch.arange(width, dtype=torch.float32).unsqueeze(0)  # (1, W)
-    y_grid, x_grid = torch.meshgrid(y_pos, x_pos, indexing="ij")  # (H, W)
+    pe = torch.zeros(seq_len, d_model)
+    pe[:, 0::2] = torch.sin(position * div_term)
+    pe[:, 1::2] = torch.cos(position * div_term)
+    return pe  # (seq_len, d_model)
 
-    omega = torch.arange(dim // 4, dtype=torch.float32)
-    omega = 1. / (temperature ** (omega / (dim // 4)))
 
-    y_emb = y_grid.flatten().unsqueeze(1) * omega.unsqueeze(0)  # (H*W, dim//4)
-    x_emb = x_grid.flatten().unsqueeze(1) * omega.unsqueeze(0)  # (H*W, dim//4)
+def get_2d_sin_cos_pos_embed(height: int, width: int, d_model: int):
+    """
+    Creates sinusoidal positional embeddings for 2D grids (e.g., image patches).
 
-    pos_emb = torch.cat([
-        torch.sin(x_emb), torch.cos(x_emb),
-        torch.sin(y_emb), torch.cos(y_emb)
-    ], dim=1)  # (H*W, dim)
+    Args:
+        height: number of positions along height (H)
+        width: number of positions along width (W)
+        d_model: embedding dimension (must be even)
 
-    return pos_emb  # shape: (height * width, dim)
+    Returns:
+        Tensor of shape (H * W, d_model)
+    """
+    if d_model % 2 != 0:
+        raise ValueError("d_model must be even for 2D positional encoding")
+
+    pe_h = get_1d_sin_cos_positional_encoding(height, d_model // 2)  # (H, d_model/2)
+    pe_w = get_1d_sin_cos_positional_encoding(width, d_model // 2)   # (W, d_model/2)
+
+    pe = torch.zeros(height, width, d_model)
+    for i in range(height):
+        for j in range(width):
+            pe[i, j] = torch.cat([pe_h[i], pe_w[j]], dim=0)
+
+    pe = pe.view(height * width, d_model)  # (H * W, d_model)
+    return pe

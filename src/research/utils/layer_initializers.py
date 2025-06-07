@@ -7,12 +7,18 @@ from research.modeling.layers.discriminator import DiscriminatorLayer, VoxelAdap
 from research.modeling.layers.generator import GeneratorLayer, VoxelFormer
 from research.modeling.layers.transformer import L2TransformerEncoderLayer, L2TransformerDecoderLayer
 from research.modeling.models.common import get_resnet
+from research.utils.enums import LayerType
+
 
 def linear(**params) -> nn.Module:
     return nn.Linear(**params)
 
 def resnet18(**params) -> nn.Module:
-    return get_resnet(params)
+    resnet_params = {
+        'type': LayerType.ResNet18,
+        'params': params
+    }
+    return get_resnet(resnet_params)
 
 def l2attention(**params) -> nn.Module:
     return L2MultiHeadAttention(**params)

@@ -1,22 +1,40 @@
 import torch
 
-from research.modeling.layers.adaconv import AdaptiveConv2d
-from research.modeling.layers.attention import L2MultiHeadAttention
-from research.modeling.layers.generator import VoxelFormer, GeneratorLayer
+
+def test_resnet18():
+    from research.modeling.models.common import get_resnet
+    from research.utils.enums import LayerType
+    resnet = get_resnet({
+        'type': LayerType.ResNet18,
+        'params': {
+            'requires_grad': False,
+            'drop_last': 4
+        }
+    })
+    image = torch.randn((1, 3, 224, 224))
+    out = resnet(image)
+    print(out.shape)
 
 
 def test_generator_layer():
-    t = torch.randn(32, 512, 4, 4)
-    style = torch.randn(32, 256)
-    t_local = torch.randn(32, 64, 256)
-    adaconv = AdaptiveConv2d(512, 256, 256, kernel_size=3, stride=1, padding=1)
-    s_attn = L2MultiHeadAttention(256, 8)
-    x_attn = L2MultiHeadAttention(256, 8)
-    vox_former = VoxelFormer(4, 256, 256, 8, 1024, tiq_qk=True)
-    generator_layer = GeneratorLayer(input_size=4 * 4,
-                                     adaconv=adaconv,
-                                     voxel_former=vox_former,
-                                     self_atten=s_attn,
-                                     cross_atten=x_attn)
-    vox, fs = generator_layer(t, style, t_local)
-    print(vox.shape, fs.shape)
+    import torch
+    from research.config.model_config import model_cfg
+    from research.modeling.models.generator import Generator
+
+    batch_size = 32
+    image = torch.randn(batch_size, 3, 224, 224)
+    generator = Generator(model_cfg)
+    descriptor = generator.get_descriptor(image)
+    t_global = descriptor[:, -1, :].squeeze(1)
+    t_local = descriptor[:, :-1, :]
+    style = generator.get_style(t_global)
+    voxels = generator(style, t_local)
+    for i in range(len(voxels)):
+        print(f'voxel #{i}: {voxels[i].shape}')
+
+def test_gan():
+    from research.config.model_config import model_cfg
+    from research.modeling.models.discriminator import Discriminator
+    from research.modeling.models.generator import Generator
+    discr = Discriminator(model_cfg)
+    gen = Generator(model_cfg)

@@ -69,6 +69,13 @@ class Discriminator(nn.Module):
         return descriptor
 
     def forward(self, x, t_local):
+        """ Feed forward method
+
+        Args:
+            x: the sequence of different scaled voxels
+            t_local: local descriptor extracted from image through image encoder
+
+        """
         outs = []
         N = len(self.layers)
         for i in range(N):

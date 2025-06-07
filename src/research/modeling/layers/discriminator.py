@@ -14,10 +14,10 @@ class Predictor(nn.Module):
         self.voxel_size = voxel_size
         self.style_dim = style_dim
         self.conv_1 = AdaptiveConv2d(in_channels, out_channels, style_dim, kernel_size=1, stride=1)
-        self.conv_2 = AdaptiveConv2d(in_channels, out_channels, style_dim, kernel_size=1, stride=1)
-        self.conv_3 = AdaptiveConv2d(in_channels, out_channels, style_dim, kernel_size=1, stride=1)
+        self.conv_2 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
+        self.conv_3 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
         self.residual = nn.Conv2d(out_channels, out_channels, 1, 1)
-        self.fc = nn.Linear(out_channels * voxel_size**3, 1)
+        self.fc = nn.Linear(out_channels * voxel_size**2, 1)
         self.sigma = nn.Sigmoid()
         self.leaky = nn.LeakyReLU(0.2)
 
@@ -50,18 +50,12 @@ class VoxelAdapter(nn.Module):
 
 
 class DiscriminatorLayer(nn.Module):
-    def __init__(self, predictor: Predictor, voxel_adapter: VoxelAdapter, downsample: bool=False):
+    def __init__(self, conv: nn.Conv2d, self_atten: L2MultiHeadAttention):
         super(DiscriminatorLayer, self).__init__()
-        self.predictor = predictor
-        self.voxel_adapter = voxel_adapter
-        self.out_channels = predictor.out_channels
-        self.downsample = None
-        if downsample:
-            self.downsample = nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=2, padding=1)
+        self.downsample = nn.Conv2d(self.out_channels, self.out_channels, kernel_size=3, stride=2, padding=1)
+        self.conv = conv
+        self.self_atten = self_atten
 
     def forward(self, x, t_local):
         if self.downsample:
             x = self.downsample(x)
-        x = self.voxel_adapter(x)
-        out = self.predictor(x, t_local)
-        return out

@@ -1,5 +1,6 @@
 from torch import nn
 
+from research.utils.constants import LayerInitMap
 from research.utils.enums import LayerType
 
 
@@ -15,7 +16,8 @@ class ImageEncoder(nn.Module):
         for layer in cfg.layers:
             tp: LayerType = layer['type']
             params = layer['params']
-            module = tp(params)
+            init_fn = LayerInitMap[tp]
+            module = init_fn(params)
             if module is None:
                 raise ValueError('module cannot be None')
             else:

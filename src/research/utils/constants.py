@@ -1,0 +1,36 @@
+from research.utils.enums import LayerType, WeightsInitType
+from research.utils.layer_initializers import *
+from research.utils.weights_initializers import *
+
+LayerInitMap = {
+    LayerType.Linear: linear,
+    LayerType.ReLU: relu,
+    LayerType.Dropout: dropout,
+    LayerType.AdapterLayer: adapter_layer,
+    LayerType.Conv2d: conv2d,
+    LayerType.L2Attention: l2attention,
+    LayerType.L2Encoder: l2encoder,
+    LayerType.L2Decoder: l2decoder,
+    LayerType.AdaConv2d: adaconv2d,
+    LayerType.GELU: gelu,
+    LayerType.Leaky: leaky,
+    LayerType.GeneratorLayer: generator_layer,
+    LayerType.DiscriminatorLayer: discriminator_layer,
+    LayerType.VoxelFormer: voxel_former,
+    LayerType.Predictor: predictor,
+    LayerType.VoxelAdapter: voxel_adapter,
+    LayerType.SelfL2Attention: l2attention,
+    LayerType.CrossL2Attention: l2attention,
+    LayerType.SelfAttention: attention,
+    LayerType.CrossAttention: attention,
+    LayerType.ResNet18: resnet18
+}
+
+WeightsInitMap = {
+    WeightsInitType.normal: init_weights_normal,
+    WeightsInitType.uniform: init_weights_uniform,
+    WeightsInitType.xavier_uniform: init_weights_xavier_uniform,
+    WeightsInitType.xavier_normal: init_weights_xavier_normal,
+    WeightsInitType.kaiming_uniform: init_weights_kaiming_uniform,
+    WeightsInitType.kaiming_normal: init_weights_kaiming_normal
+}

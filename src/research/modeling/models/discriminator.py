@@ -1,10 +1,56 @@
+from typing import Dict
+
 import torch
 from torch import nn
 
+from research.modeling.models.image_encoder import ImageEncoder
+from research.utils.constants import LayerInitMap
+from research.utils.enums import LayerType
+
 
 class Discriminator(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
         super(Discriminator, self).__init__()
+        self.config = config
+        self.layers = self._init_layers_()
+        self.image_encoder = ImageEncoder(config)
 
-    def _init_layers_(self):
-        raise NotImplementedError()
+    def _init_layers_(self) -> nn.ModuleList:
+        cfg = self.config.discriminator
+        layers = []
+        for layer in cfg.layers:
+            tp: LayerType = layer['type']
+            init_fn = LayerInitMap[tp]
+            params: Dict = {
+                **layer['params'],
+                **self._get_layer_params(layer)
+            }
+            module = init_fn(**params)
+            if module is None:
+                raise ValueError('module cannot be None')
+            else:
+                layers.append(module)
+        return nn.ModuleList(layers)
+
+    def _get_layer_params(self, layer_config: Dict) -> nn.Module:
+        parameters = {}
+        layers = layer_config['layers']
+        for layer in layers:
+            tp = layer['type']
+            params = layer['params']
+            init_fn = LayerInitMap[tp]
+            module = init_fn(**params)
+            if tp == LayerType.Predictor:
+                parameters['predictor'] = module
+            elif tp == LayerType.VoxelAdapter:
+                parameters['voxel_adapter'] = module
+            else:
+                raise ValueError(f'unknown parameter: {tp}')
+        return parameters
+
+    def get_descriptor(self, x):
+        descriptor = self.image_encoder(x)
+        return descriptor
+
+    def forward(self, x, t_local):
+        preds = []

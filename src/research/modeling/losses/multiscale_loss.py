@@ -29,5 +29,7 @@ class MultiScaleLoss(nn.Module):
         gen_loss = 0.0
         for i in range(len(fake_preds)):
             fake_pred = fake_preds[i]
-            gen_loss = gen_loss + self.gan_loss.G_loss(fake_pred)
+            for j in range(len(fake_pred)):
+                fake = fake_pred[j]
+                gen_loss = gen_loss + self.gan_loss.G_loss(fake)
         return gen_loss

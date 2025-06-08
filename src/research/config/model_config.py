@@ -164,15 +164,55 @@ model_cfg.generator = EasyDict()
 model_cfg.generator.base_features = {
     'weights_init': WeightsInitType.xavier_normal,
     'weights_init_params': {},
-    'shape': (4, 4, 4)
+    'shape': (2, 2, 2)
 }
 model_cfg.generator.layers = [
     {
         'type': LayerType.GeneratorLayer,
         'params': {
-            'input_size': 4,
-            'patch_size': 2,
+            'input_size': 2,
+            'patch_size': 1,
             'emb_dim': DESCRIPTOR_DIM
+        },
+        'layers': [
+            {
+                'type': LayerType.AdaConv2d,
+                'params': {
+                    'in_channels': 2,
+                    'out_channels': 4,
+                    'style_dim': STYLE_DIM,
+                    'kernel_size': 3,
+                    'stride': 1,
+                    'padding': 1,
+                    'bank_size': 4
+                },
+                'validate': {
+                    'input': (2, 4, 4),
+                    'output': (4, 4, 4)
+                }
+            },
+            {
+                'type': LayerType.VoxelFormer,
+                'params': {
+                    'input_size': 4,
+                    'seq_size': 16,
+                    'dim_size': DESCRIPTOR_DIM,
+                    'nhead': 8,
+                    'dim_feedforward': 2048,
+                    'tiq_qk': True
+                }
+            }
+        ],
+        'validate': {
+            'input': (2, 2, 2),
+            'output': (4, 4, 4)
+        }
+    },
+    {
+        'type': LayerType.GeneratorLayer,
+        'params': {
+            'input_size': 4,
+            'patch_size': 2
         },
         'layers': [
             {
@@ -189,6 +229,24 @@ model_cfg.generator.layers = [
                 'validate': {
                     'input': (4, 8, 8),
                     'output': (8, 8, 8)
+                }
+            },
+            {
+                'type': LayerType.SelfAttention,
+                'params': {
+                    'embed_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    # 'tie_qk': True
+                    'batch_first': True
+                }
+            },
+            {
+                'type': LayerType.CrossAttention,
+                'params': {
+                    'embed_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    # 'tie_qk': True
+                    'batch_first': True
                 }
             },
             {
@@ -228,19 +286,21 @@ model_cfg.generator.layers = [
                 }
             },
             {
-                'type': LayerType.SelfL2Attention,
+                'type': LayerType.SelfAttention,
                 'params': {
                     'embed_dim': DESCRIPTOR_DIM,
                     'num_heads': 8,
-                    'tie_qk': True
+                    # 'tie_qk': True
+                    'batch_first': True
                 }
             },
             {
-                'type': LayerType.CrossL2Attention,
+                'type': LayerType.CrossAttention,
                 'params': {
                     'embed_dim': DESCRIPTOR_DIM,
                     'num_heads': 8,
-                    'tie_qk': True
+                    # 'tie_qk': True
+                    'batch_first': True
                 }
             },
             {
@@ -284,19 +344,21 @@ model_cfg.generator.layers = [
                 }
             },
             {
-                'type': LayerType.SelfL2Attention,
+                'type': LayerType.SelfAttention,
                 'params': {
                     'embed_dim': DESCRIPTOR_DIM,
                     'num_heads': 8,
-                    'tie_qk': True
+                    # 'tie_qk': True
+                    'batch_first': True
                 }
             },
             {
-                'type': LayerType.CrossL2Attention,
+                'type': LayerType.CrossAttention,
                 'params': {
                     'embed_dim': DESCRIPTOR_DIM,
                     'num_heads': 8,
-                    'tie_qk': True
+                    # 'tie_qk': True
+                    'batch_first': True
                 }
             },
             {
@@ -392,6 +454,25 @@ model_cfg.discriminator.layers = [
                 }
             }
         ]
+    },
+    {
+        'type': LayerType.DiscriminatorLayer,
+        'params': {
+            'input_size': 4,
+            'patch_size': 2,
+        },
+        'layers': [
+            {
+                'type': LayerType.Conv2d,
+                'params': {
+                    'in_channels': 4,
+                    'out_channels': 1,
+                    'kernel_size': 4,
+                    'stride': 1,
+                    'padding': 0
+                }
+            }
+        ]
     }
 ]
 
@@ -420,6 +501,15 @@ model_cfg.discriminator.predictors = [
             'in_channels': 4,
             'out_channels': 8,
             'voxel_size': 4,
+            'style_dim': STYLE_DIM
+        }
+    },
+    {
+        'type': LayerType.Predictor,
+        'params': {
+            'in_channels': 1,
+            'out_channels': 2,
+            'voxel_size': 1,
             'style_dim': STYLE_DIM
         }
     }

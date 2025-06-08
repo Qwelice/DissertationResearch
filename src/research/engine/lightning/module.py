@@ -72,3 +72,12 @@ class MainModule(pl.LightningModule):
         device = image.device
         miss_image = self.get_random_image_batch(self.config.train.batch_size).to(device)
 
+        fakes = self.generator_forward(image)
+        fakes_detached = [ f.detach() for f in fakes ]
+
+        # ==================
+        # Discriminator part
+        # ==================
+        dis_opt.zero_grad()
+        real_preds = self.discriminator_forward(image, voxel)
+        fake_preds = self.discriminator_forward(image, fakes_detached)

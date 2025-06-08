@@ -65,7 +65,7 @@ model_cfg = EasyDict()
 
 model_cfg.style_dim = STYLE_DIM
 model_cfg.descriptor_dim = DESCRIPTOR_DIM
-model_cfg.latent_dim = 128
+model_cfg.latent_dim = LATENT_DIM
 
 model_cfg.image_encoder = EasyDict()
 model_cfg.image_encoder.layers = [
@@ -189,7 +189,7 @@ model_cfg.generator.layers = [
             {
                 'type': LayerType.VoxelFormer,
                 'params': {
-                    'input_size': DESCRIPTOR_DIM,
+                    'input_size': 8,
                     'seq_size': 16,
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
@@ -241,7 +241,7 @@ model_cfg.generator.layers = [
             {
                 'type': LayerType.VoxelFormer,
                 'params': {
-                    'input_size': DESCRIPTOR_DIM,
+                    'input_size': 16,
                     'seq_size': 64,
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
@@ -297,7 +297,7 @@ model_cfg.generator.layers = [
             {
                 'type': LayerType.VoxelFormer,
                 'params': {
-                    'input_size': DESCRIPTOR_DIM,
+                    'input_size': 32,
                     'seq_size': 64,
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
@@ -310,5 +310,79 @@ model_cfg.generator.layers = [
             'input': (16, 16, 16),
             'output': (32, 32, 32)
         }
+    }
+]
+
+model_cfg.discriminator = EasyDict()
+model_cfg.discriminator.layers = [
+    {
+        'type': LayerType.DiscriminatorLayer,
+        'params': {
+            'patch_size': 4,
+        },
+        'layers': [
+            {
+                'type': LayerType.Conv2d,
+                'params': {
+                    'in_channels': 32,
+                    'out_channels': 16,
+                    'kernel_size': 3,
+                    'stride': 2,
+                    'padding': 1
+                }
+            }
+        ]
+    },
+    {
+        'type': LayerType.DiscriminatorLayer,
+        'params': {
+            'patch_size': 2,
+        },
+        'layers': [
+            {
+                'type': LayerType.Conv2d,
+                'params': {
+                    'in_channels': 16,
+                    'out_channels': 8,
+                    'kernel_size': 3,
+                    'stride': 2,
+                    'padding': 1
+                }
+            },
+            {
+                'type': LayerType.SelfL2Attention,
+                'params': {
+                    'emb_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    'tie_qk': True
+                }
+            }
+        ]
+    },
+{
+        'type': LayerType.DiscriminatorLayer,
+        'params': {
+            'patch_size': 2,
+        },
+        'layers': [
+            {
+                'type': LayerType.Conv2d,
+                'params': {
+                    'in_channels': 16,
+                    'out_channels': 8,
+                    'kernel_size': 3,
+                    'stride': 2,
+                    'padding': 1
+                }
+            },
+            {
+                'type': LayerType.SelfL2Attention,
+                'params': {
+                    'emb_dim': DESCRIPTOR_DIM,
+                    'num_heads': 8,
+                    'tie_qk': True
+                }
+            }
+        ]
     }
 ]

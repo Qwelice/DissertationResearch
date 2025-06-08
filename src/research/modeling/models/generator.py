@@ -56,9 +56,9 @@ class Generator(nn.Module):
                 parameters['adaconv'] = module
             elif tp == LayerType.VoxelFormer:
                 parameters['voxel_former'] = module
-            elif tp == LayerType.SelfL2Attention or LayerType.SelfAttention:
+            elif tp == LayerType.SelfL2Attention or tp == LayerType.SelfAttention:
                 parameters['self_atten'] = module
-            elif tp == LayerType.CrossL2Attention or LayerType.CrossAttention:
+            elif tp == LayerType.CrossL2Attention or tp == LayerType.CrossAttention:
                 parameters['cross_atten'] = module
             else:
                 raise ValueError(f'unknown parameter: {tp}')

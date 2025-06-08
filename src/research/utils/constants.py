@@ -1,6 +1,6 @@
-from research.utils.enums import LayerType, WeightsInitType
-from research.utils.layer_initializers import *
-from research.utils.weights_initializers import *
+from research.utils.enums import WeightsInitType
+from research.utils.initializers.layer_initializers import *
+from research.utils.initializers.weights_initializers import *
 
 LayerInitMap = {
     LayerType.Linear: linear,

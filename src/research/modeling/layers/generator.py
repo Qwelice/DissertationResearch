@@ -80,10 +80,8 @@ class GeneratorLayer(nn.Module):
         out, _ = self.cross_atten(x, t_local, t_local)
         return out
 
-    def forward(self, x, style, t_local):
-        x = nn.functional.upsample(x, scale_factor=2, mode='bicubic')
-        B, _, H, W = x.size()
-        x = self.adaconv(x, style)
+    def _attention(self, x, style, t_local):
+        B, _, H, W = x.shape
         pos = get_2d_sin_cos_pos_embed(H // self.patch_size,
                                        W // self.patch_size,
                                        self.emb_dim).unsqueeze(0).expand(B, -1, -1)
@@ -94,8 +92,14 @@ class GeneratorLayer(nn.Module):
             style = style.unsqueeze(1)
         styled = torch.cat([x, style], dim=1)
         x = self._self_attention(styled)
-        x = x[::, :-1, ::] # drop style
+        x = x[::, :-1, ::]  # drop style
         x = self._cross_attention(x, t_local)
+        return x
+
+    def forward(self, x, style, t_local):
+        x = nn.functional.interpolate(x, scale_factor=2, mode='bicubic')
+        x = self.adaconv(x, style)
+        x = self._attention(x, style, t_local)
         voxel = self.voxel_former(x)
         x = self.from_tokens(x)
         features = merge_patches(x, self.patch_size)

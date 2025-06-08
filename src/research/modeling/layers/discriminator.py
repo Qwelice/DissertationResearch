@@ -5,7 +5,7 @@ from torch import nn
 
 from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.attention import L2MultiHeadAttention
-from research.utils.functions import split_into_patches, merge_patches
+from research.utils.functions import split_into_patches, merge_patches, get_2d_sin_cos_pos_embed
 
 
 class Predictor(nn.Module):
@@ -60,8 +60,11 @@ class DiscriminatorLayer(nn.Module):
     def _self_attn(self, x):
         if self.self_atten is None:
             return x
+        B, _, H, W = x.shape
+        pos = get_2d_sin_cos_pos_embed(H // self.patch_size, W // self.patch_size, self.self_atten.embed_dim)
         x = split_into_patches(x, patch_size=self.patch_size)
         x = self.to_tokens(x)
+        x = x + pos
         x, _ = self.self_atten(x, x, x)
         x = self.from_tokens(x)
         x = merge_patches(x, self.patch_size)

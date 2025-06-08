@@ -1,5 +1,6 @@
-from research.utils.enums import WeightsInitType
+from research.utils.enums import WeightsInitType, OptimizerType
 from research.utils.initializers.layer_initializers import *
+from research.utils.initializers.optimizer_initializers import *
 from research.utils.initializers.weights_initializers import *
 
 LayerInitMap = {
@@ -41,4 +42,8 @@ ParametersInitMap = {
     WeightsInitType.xavier_normal: init.xavier_normal_,
     WeightsInitType.kaiming_uniform: init.kaiming_uniform_,
     WeightsInitType.kaiming_normal: init.kaiming_normal_
+}
+
+OptimizersInitMap = {
+    OptimizerType.adam: adam
 }

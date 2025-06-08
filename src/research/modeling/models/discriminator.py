@@ -1,6 +1,5 @@
 from typing import Dict
 
-import torch
 from torch import nn
 
 from research.modeling.models.image_encoder import ImageEncoder
@@ -71,12 +70,12 @@ class Discriminator(nn.Module):
         descriptor = self.image_encoder(x)
         return descriptor
 
-    def forward(self, x, t_local):
+    def forward(self, x, t_global):
         """ Feed forward method
 
         Args:
             x: the sequence of different scaled voxels
-            t_local: local descriptor extracted from image through image encoder
+            t_global: local descriptor extracted from image through image encoder
 
         """
         outs = []
@@ -86,7 +85,7 @@ class Discriminator(nn.Module):
             phi = x[i]
             for j in range(i, N):
                 phi = self.layers[j](phi)
-                psi = self.predictors[j](phi, t_local)
+                psi = self.predictors[j](phi, t_global)
                 preds.append(psi)
             outs.append(preds)
         return outs

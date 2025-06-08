@@ -24,10 +24,34 @@ experiment_cfg.train.continue_from_last = False
 
 # Optimizer params
 experiment_cfg.optimizer = EasyDict()
-experiment_cfg.optimizer.type = OptimizerType.adam
-experiment_cfg.optimizer.betas = [0.9, 0.999]
+experiment_cfg.optimizer = {
+    'type': OptimizerType.adam,
+    'params': {
+        'params': None,
+        'betas': [0.9, 0.999]
+    }
+}
+
+experiment_cfg.generator = EasyDict()
+experiment_cfg.discriminator = EasyDict()
+# Alternative optimizers params
+experiment_cfg.generator.optimizer = {
+    'type': OptimizerType.adam,
+    'params': {
+        'params': None,
+        'betas': [0.9, 0.999]
+    }
+}
+experiment_cfg.discriminator.optimizer = {
+    'type': OptimizerType.adam,
+    'params': {
+        'params': None,
+        'betas': [0.9, 0.999]
+    }
+}
 
 # LR Scheduler
+
 
 # Tensorflow params
 experiment_cfg.tensorflow = EasyDict()

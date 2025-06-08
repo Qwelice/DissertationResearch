@@ -81,3 +81,5 @@ class MainModule(pl.LightningModule):
         dis_opt.zero_grad()
         real_preds = self.discriminator_forward(image, voxel)
         fake_preds = self.discriminator_forward(image, fakes_detached)
+        real_preds_miss = self.discriminator_forward(miss_image, voxel)
+        fake_preds_miss = self.discriminator_forward(miss_image, fakes_detached)

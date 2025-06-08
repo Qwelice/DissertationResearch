@@ -4,11 +4,27 @@ from typing import Optional, Tuple
 import torch
 from torch.utils import data as tdt
 
+from research.data.datasets.modelnet10 import Modelnet10Dataset
 from research.utils.enums import SetType, LayerType
 
 
-def build_dataloader(experiment_config, set_type: SetType) -> tdt.DataLoader:
-    ...
+def build_dataloader(experiment_config, set_type: SetType, is_pyramidal_voxels: Optional[bool]=None) -> tdt.DataLoader:
+    set_name = experiment_config.set_name
+    if set_name == 'modelnet10':
+        dataset = Modelnet10Dataset(experiment_config.data_cfg, set_type, pyramidal_voxels=is_pyramidal_voxels)
+        batch_size = experiment_config.train.batch_size if set_type == SetType.train else experiment_config.eval.batch_size
+        shuffle = experiment_config.train.shuffle if set_type == SetType.train else experiment_config.eval.shuffle
+        num_workers = experiment_config.train.num_workers if set_type == SetType.train else experiment_config.eval.num_workers
+        drop_last = experiment_config.train.drop_last if set_type == SetType.train else experiment_config.eval.drop_last
+
+        loader = tdt.DataLoader(dataset,
+                                batch_size=batch_size,
+                                shuffle=shuffle,
+                                num_workers=num_workers,
+                                drop_last=drop_last)
+        return loader
+    else:
+        raise KeyError(f'unknown dataset name: `{set_name}`')
 
 
 def split_into_patches(features: torch.Tensor, patch_size: int, to_flatten: bool=True) -> torch.Tensor:

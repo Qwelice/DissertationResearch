@@ -3,6 +3,7 @@ import os
 from easydict import EasyDict
 
 from research.config.data_config import data_cfg
+from research.config.model_config import model_cfg
 from research.utils.enums import OptimizerType
 from research.utils.io import root_dir
 
@@ -21,6 +22,16 @@ experiment_cfg.train = EasyDict()
 experiment_cfg.train.batch_size = 32
 experiment_cfg.train.learning_rate = 1e-3
 experiment_cfg.train.continue_from_last = False
+experiment_cfg.train.shuffle = True
+experiment_cfg.train.num_workers = 3
+experiment_cfg.train.drop_last = True
+
+# Evaluation params
+experiment_cfg.eval = EasyDict()
+experiment_cfg.eval.batch_size = 1
+experiment_cfg.eval.shuffle = False
+experiment_cfg.eval.num_workers = 3
+experiment_cfg.eval.drop_last = False
 
 # Optimizer params
 experiment_cfg.optimizer = EasyDict()
@@ -34,6 +45,7 @@ experiment_cfg.optimizer = {
 
 experiment_cfg.generator = EasyDict()
 experiment_cfg.discriminator = EasyDict()
+
 # Alternative optimizers params
 experiment_cfg.generator.optimizer = {
     'type': OptimizerType.adam,
@@ -64,4 +76,5 @@ experiment_cfg.ckpt_dir = os.path.join(ROOT_DIR, 'models')
 experiment_cfg.monitor = 'val_loss'
 experiment_cfg.mode = 'min'
 
-experiment_cfg.data = data_cfg
+experiment_cfg.data_cfg = data_cfg
+experiment_cfg.model_cfg = model_cfg

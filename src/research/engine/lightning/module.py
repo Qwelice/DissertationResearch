@@ -4,9 +4,11 @@ from typing import Union, List, Tuple, Optional, Any
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.types import OptimizerLRScheduler, STEP_OUTPUT
+from torch import nn
 from torch.utils.data import default_collate
 
 from research.data.datasets.modelnet10 import Modelnet10Dataset
+from research.modeling.losses.multiscale_loss import MultiScaleLoss
 from research.modeling.models.discriminator import Discriminator
 from research.modeling.models.generator import Generator
 from research.utils.constants import OptimizersInitMap
@@ -23,6 +25,8 @@ class MainModule(pl.LightningModule):
         self.generator = Generator(model_cfg)
         self.discriminator = Discriminator(model_cfg)
         self.internal_set = Modelnet10Dataset(config.data_cfg, SetType.train)
+        self.mscale_loss = MultiScaleLoss()
+        self.mse = nn.MSELoss()
 
     def generator_forward(self, image: torch.Tensor) -> Tuple[torch.Tensor]:
         descriptor = self.generator.get_descriptor(image)
@@ -83,3 +87,15 @@ class MainModule(pl.LightningModule):
         fake_preds = self.discriminator_forward(image, fakes_detached)
         real_preds_miss = self.discriminator_forward(miss_image, voxel)
         fake_preds_miss = self.discriminator_forward(miss_image, fakes_detached)
+        dis_loss = self.mscale_loss.D_loss(real_preds, fake_preds, real_preds_miss, fake_preds_miss)
+        self.manual_backward(dis_loss)
+        dis_opt.step()
+
+        # ==============
+        # Generator part
+        # ==============
+        gen_opt.zero_grad()
+        fake_preds = self.discriminator_forward(image, fakes)
+        gen_loss = self.mscale_loss.G_loss(fake_preds)
+        self.manual_backward(gen_loss)
+        gen_opt.step()

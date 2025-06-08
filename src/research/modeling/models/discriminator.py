@@ -57,11 +57,14 @@ class Discriminator(nn.Module):
             init_fn = LayerInitMap[tp]
             module = init_fn(**params)
             if tp == LayerType.Predictor:
-                parameters['predictor'] = module
-            elif tp == LayerType.VoxelAdapter:
-                parameters['voxel_adapter'] = module
+                key = 'predictor'
+            elif tp == LayerType.Conv2d:
+                key = 'conv'
+            elif tp == LayerType.SelfL2Attention:
+                key = 'self_atten'
             else:
                 raise ValueError(f'unknown parameter: {tp}')
+            parameters[key] = module
         return parameters
 
     def get_descriptor(self, x):
@@ -79,9 +82,10 @@ class Discriminator(nn.Module):
         outs = []
         N = len(self.layers)
         for i in range(N):
-            phi = self.layers[i](x[i])
             preds = []
+            phi = x[i]
             for j in range(i, N):
+                phi = self.layers[j](phi)
                 psi = self.predictors[j](phi, t_local)
                 preds.append(psi)
             outs.append(preds)

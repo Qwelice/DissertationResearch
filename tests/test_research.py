@@ -1,3 +1,6 @@
+from typing import Tuple
+
+
 def test_resnet18():
     import torch
     from research.modeling.models.common import get_resnet
@@ -46,11 +49,12 @@ def test_gan():
     t_global = gen_descriptor[:, -1, :].squeeze(1)
     t_local = gen_descriptor[:, :-1, :]
     style = generator.get_style(t_global)
-    voxels = generator(style, t_local)
+    voxels: Tuple = generator(style, t_local)
+    voxels = list(reversed(voxels))
 
     dis_descriptor = discriminator.get_descriptor(image)
-    t_local = dis_descriptor[:, :-1, :]
-    preds = discriminator(voxels, t_local)
+    t_global = dis_descriptor[:, -1, :].squeeze(1)
+    preds = discriminator(voxels, t_global)
     for i in range(len(preds)):
         print(f'predictions #{i}:')
         for p in preds[i]:

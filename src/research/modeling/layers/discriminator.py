@@ -18,6 +18,7 @@ class Predictor(nn.Module):
         self.conv_1 = AdaptiveConv2d(in_channels, out_channels, style_dim, kernel_size=1, stride=1)
         self.conv_2 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
         self.conv_3 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
+        self.conv_4 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
         self.residual = nn.Conv2d(out_channels, out_channels, 1, 1)
         self.fc = nn.Linear(out_channels * voxel_size**2, 1)
         self.sigma = nn.Sigmoid()
@@ -27,6 +28,7 @@ class Predictor(nn.Module):
         x = self.leaky(self.conv_1(x, style))
         x = self.leaky(self.conv_2(x, style))
         x = self.leaky(self.conv_3(x, style))
+        x = self.leaky(self.conv_4(x, style))
         x = x + self.residual(x)
         x = torch.flatten(x, start_dim=1)
         x = self.fc(x)
@@ -34,32 +36,19 @@ class Predictor(nn.Module):
         return x
 
 
-class VoxelAdapter(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, patch_size: int,
-                 emb_dim: int, num_heads: int, tie_qk: bool=True):
-        super(VoxelAdapter, self).__init__()
-        self.patch_size = patch_size
-        self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels,
-                              kernel_size=3, stride=1, padding=1)
-        self.self_attn = L2MultiHeadAttention(embed_dim=emb_dim, num_heads=num_heads, tie_qk=tie_qk)
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = split_into_patches(x, self.patch_size)
-        x = self.self_attn(x, x, x)
-        x = merge_patches(x, self.patch_size)
-        return x
-
-
 class DiscriminatorLayer(nn.Module):
     """
-    DO NOT FORGET: PATCH SIZE YOU'RE USING FOR DOWNSAMPLED FEATURES!
+    DO NOT FORGET: [PATCH SIZE YOU'RE USING AFTER DOWNSAMPLING!
+                    INPUT SIZE YOU'RE USING BEFORE DOWNSAMPLING]
     """
-    def __init__(self, patch_size: int, conv: nn.Conv2d,
+    def __init__(self, input_size: int, patch_size: int, conv: nn.Conv2d,
                  self_atten: Optional[L2MultiHeadAttention]=None, activation: Optional[str]=None):
         super(DiscriminatorLayer, self).__init__()
+        self.input_size = input_size // 2 * patch_size * patch_size
         self.patch_size = patch_size
         self.conv = conv
+        self.to_tokens = nn.Linear(self.input_size, self_atten.embed_dim) if self_atten is not None else None
+        self.from_tokens = nn.Linear(self_atten.embed_dim, self.input_size) if self_atten is not None else None
         self.self_atten = self_atten
         if activation is None:
             activation = 'relu'
@@ -68,10 +57,17 @@ class DiscriminatorLayer(nn.Module):
         else:
             self.activation = nn.GELU()
 
+    def _self_attn(self, x):
+        if self.self_atten is None:
+            return x
+        x = split_into_patches(x, patch_size=self.patch_size)
+        x = self.to_tokens(x)
+        x, _ = self.self_atten(x, x, x)
+        x = self.from_tokens(x)
+        x = merge_patches(x, self.patch_size)
+        return x
+
     def forward(self, x):
         x = self.conv(x)
-        if self.self_atten is not None:
-            x = split_into_patches(x, patch_size=self.patch_size)
-            x = self.self_atten(x, x, x)
-            x = merge_patches(x, self.patch_size)
+        x = self._self_attn(x)
         return x

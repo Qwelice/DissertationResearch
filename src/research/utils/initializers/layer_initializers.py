@@ -3,7 +3,7 @@ from torch import nn
 from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.adapter import AdapterLayer
 from research.modeling.layers.attention import L2MultiHeadAttention
-from research.modeling.layers.discriminator import DiscriminatorLayer, VoxelAdapter, Predictor
+from research.modeling.layers.discriminator import DiscriminatorLayer, Predictor
 from research.modeling.layers.generator import GeneratorLayer, VoxelFormer
 from research.modeling.layers.transformer import L2TransformerEncoderLayer, L2TransformerDecoderLayer
 from research.modeling.models.common import get_resnet
@@ -61,9 +61,6 @@ def discriminator_layer(**params) -> nn.Module:
 
 def voxel_former(**params) -> nn.Module:
     return VoxelFormer(**params)
-
-def voxel_adapter(**params) -> nn.Module:
-    return VoxelAdapter(**params)
 
 def predictor(**params) -> nn.Module:
     return Predictor(**params)

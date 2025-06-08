@@ -2,60 +2,65 @@ from easydict import EasyDict
 
 from research.utils.enums import LayerType, ConversionType, WeightsInitType
 
-# L2Attention params: <embed_dim: int,
-#                      num_heads: int,
-#                      kdim: Optional[int]=None,
-#                      vdim: Optional[int]=None,
-#                      tie_qk: bool=True>
+# L2Attention params: <'embed_dim': int,
+#                      'num_heads': int,
+#                      'kdim': Optional[int]=None,
+#                      'vdim': Optional[int]=None,
+#                      'tie_qk': bool=True>
 
-# AdaptiveConv2d params: <in_channels: int,
-#                         out_channels: int,
-#                         style_dim: int,
-#                         kernel_size: int=3,
-#                         stride: int=1,
-#                         padding: int=0,
-#                         bank_size: int=4,
-#                         eps: float=1e-8>
+# AdaptiveConv2d params: <'in_channels': int,
+#                         'out_channels': int,
+#                         'style_dim': int,
+#                         'kernel_size': int=3,
+#                         'stride': int=1,
+#                         'padding': int=0,
+#                         'bank_size': int=4,
+#                         'eps': float=1e-8>
 
-# L2TransformerEncoderLayer params: <d_model: int,
-#                                    nhead: int,
-#                                    dim_feedforward: int,
-#                                    activation: Optional[str]=None,
-#                                    tiq_qk: bool=True>
+# L2TransformerEncoderLayer params: <'d_model': int,
+#                                    'nhead': int,
+#                                    'dim_feedforward': int,
+#                                    'activation': Optional[str]=None,
+#                                    'tiq_qk': bool=True>
 
-# L2TransformerDecoderLayer params: <d_model: int,
-#                                    nhead: int,
-#                                    dim_feedforward: int,
-#                                    activation: Optional[str]=None,
-#                                    tie_qk: bool=True>
+# L2TransformerDecoderLayer params: <'d_model': int,
+#                                    'nhead': int,
+#                                    'dim_feedforward': int,
+#                                    'activation': Optional[str]=None,
+#                                    'tie_qk': bool=True>
 
-# GeneratorLayer params: <input_size: int,
-#                         patch_size: int,
-#                         adaconv: AdaptiveConv2d,
-#                         voxel_former: VoxelFormer,
-#                         self_atten: Optional[L2MultiHeadAttention]=None,
-#                         cross_atten: Optional[L2MultiHeadAttention]=None,
-#                         upsample_input: bool=False,
-#                         size_threshold: int=32>
+# GeneratorLayer params: <'input_size': int,
+#                         'patch_size': int,
+#                         'adaconv': AdaptiveConv2d,
+#                         'voxel_former': VoxelFormer,
+#                         'self_atten': Optional[L2MultiHeadAttention]=None,
+#                         'cross_atten': Optional[L2MultiHeadAttention]=None,
+#                         'upsample_input': bool=False,
+#                         'size_threshold': int=32>
 
-# VoxelFormerLayer params: <input_size: int,
-#                           seq_size: int,
-#                           dim_size: int,
-#                           nhead: int,
-#                           dim_feedforward: int,
-#                           activation: Optional[str]=None,
-#                           tiq_qk: Optional[bool]=None>
+# VoxelFormerLayer params: <'input_size': int,
+#                           'seq_size': int,
+#                           'dim_size': int,
+#                           'nhead': int,
+#                           'dim_feedforward': int,
+#                           'activation': Optional[str]=None,
+#                           'tiq_qk': Optional[bool]=None>
 
-# DiscriminatorLayer params: <predictor: Predictor,
-#                             voxel_adapter: VoxelAdapter,
-#                             downsample: bool=False>
+# DiscriminatorLayer params: <'predictor': Predictor,
+#                             'voxel_adapter': VoxelAdapter,
+#                             'downsample': bool=False>
 
-# VoxelAdapter params: <in_channels: int,
-#                       out_channels: int,
-#                       patch_size: int,
-#                       emb_dim: int,
-#                       num_heads: int,
-#                       tie_qk: bool=True>
+# VoxelAdapter params: <'in_channels': int,
+#                       'out_channels': int,
+#                       'patch_size': int,
+#                       'emb_dim': int,
+#                       'num_heads': int,
+#                       'tie_qk': bool=True>
+
+# Predictor params: <'in_channels': int,
+#                    'out_channels': int,
+#                    'voxel_size': int,
+#                    'style_dim': int>
 
 STYLE_DIM = 256
 DESCRIPTOR_DIM = STYLE_DIM
@@ -318,6 +323,7 @@ model_cfg.discriminator.layers = [
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
+            'input_size': 32,
             'patch_size': 4,
         },
         'layers': [
@@ -336,6 +342,7 @@ model_cfg.discriminator.layers = [
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
+            'input_size': 16,
             'patch_size': 2,
         },
         'layers': [
@@ -352,24 +359,25 @@ model_cfg.discriminator.layers = [
             {
                 'type': LayerType.SelfL2Attention,
                 'params': {
-                    'emb_dim': DESCRIPTOR_DIM,
+                    'embed_dim': DESCRIPTOR_DIM,
                     'num_heads': 8,
                     'tie_qk': True
                 }
             }
         ]
     },
-{
+    {
         'type': LayerType.DiscriminatorLayer,
         'params': {
+            'input_size': 8,
             'patch_size': 2,
         },
         'layers': [
             {
                 'type': LayerType.Conv2d,
                 'params': {
-                    'in_channels': 16,
-                    'out_channels': 8,
+                    'in_channels': 8,
+                    'out_channels': 4,
                     'kernel_size': 3,
                     'stride': 2,
                     'padding': 1
@@ -378,11 +386,41 @@ model_cfg.discriminator.layers = [
             {
                 'type': LayerType.SelfL2Attention,
                 'params': {
-                    'emb_dim': DESCRIPTOR_DIM,
+                    'embed_dim': DESCRIPTOR_DIM,
                     'num_heads': 8,
                     'tie_qk': True
                 }
             }
         ]
+    }
+]
+
+model_cfg.discriminator.predictors = [
+    {
+        'type': LayerType.Predictor,
+        'params': {
+            'in_channels': 16,
+            'out_channels': 32,
+            'voxel_size': 16,
+            'style_dim': STYLE_DIM
+        }
+    },
+    {
+        'type': LayerType.Predictor,
+        'params': {
+            'in_channels': 8,
+            'out_channels': 16,
+            'voxel_size': 8,
+            'style_dim': STYLE_DIM
+        }
+    },
+    {
+        'type': LayerType.Predictor,
+        'params': {
+            'in_channels': 4,
+            'out_channels': 8,
+            'voxel_size': 4,
+            'style_dim': STYLE_DIM
+        }
     }
 ]

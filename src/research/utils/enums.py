@@ -2,9 +2,9 @@ from enum import IntEnum
 
 
 LayerType = IntEnum('LayerType', (
-    'Linear', 'ReLU', 'Dropout', 'AdapterLayer', 'Conv2d', 'L2Attention', 'L2Encoder', 'L2Decoder',
+    'Linear', 'ReLU', 'Dropout', 'AdapterLayer', 'Conv2d', 'L2Attention', 'L2EncoderLayer', 'L2DecoderLayer',
     'AdaConv2d', 'GELU', 'Leaky', 'GeneratorLayer', 'DiscriminatorLayer', 'VoxelFormer', 'Predictor',
-    'SelfL2Attention', 'CrossL2Attention', 'SelfAttention', 'CrossAttention', 'ResNet18'
+    'SelfL2Attention', 'CrossL2Attention', 'SelfAttention', 'CrossAttention', 'ResNet18', 'L2Encoder', 'L2Decoder'
 ))
 ConversionType = IntEnum('ConversionType', ('split', 'merge'))
 

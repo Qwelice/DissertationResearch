@@ -7,6 +7,7 @@ from research.modeling.layers.discriminator import DiscriminatorLayer, Predictor
 from research.modeling.layers.generator import GeneratorLayer, VoxelFormer
 from research.modeling.layers.transformer import L2TransformerEncoderLayer, L2TransformerDecoderLayer
 from research.modeling.models.common import get_resnet
+from research.modeling.models.transformer import L2TransformerEncoder, L2TransformerDecoder
 from research.utils.enums import LayerType
 
 
@@ -41,11 +42,17 @@ def gelu(**params) -> nn.Module:
 def attention(**params) -> nn.Module:
     return nn.MultiheadAttention(**params)
 
-def l2encoder(**params) -> nn.Module:
+def l2encoder_layer(**params) -> nn.Module:
     return L2TransformerEncoderLayer(**params)
 
-def l2decoder(**params) -> nn.Module:
+def l2decoder_layer(**params) -> nn.Module:
     return L2TransformerDecoderLayer(**params)
+
+def l2encoder(**params) -> nn.Module:
+    return L2TransformerEncoder(**params)
+
+def l2decoder(**params) -> nn.Module:
+    return L2TransformerDecoder(**params)
 
 def transformer_encoder(**params) -> nn.Module:
     return nn.TransformerEncoder(**params)

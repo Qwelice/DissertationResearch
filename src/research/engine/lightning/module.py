@@ -13,8 +13,8 @@ from research.modeling.losses.multiscale_loss import MultiScaleLoss
 from research.modeling.losses.multiscale_mse import MultiScaleMSE
 from research.modeling.models.discriminator import Discriminator
 from research.modeling.models.generator import Generator
-from research.utils.constants import OptimizersInitMap
-from research.utils.enums import SetType
+from research.utils.constants import OptimizersInitMap, WeightsInitMap
+from research.utils.enums import SetType, WeightsInitType
 from research.utils.metrics import discriminator_accuracy
 
 warnings.filterwarnings('ignore', category=UserWarning, module='pytorch_lightning')
@@ -32,6 +32,9 @@ class MainModule(pl.LightningModule):
         self.internal_set = Modelnet10Dataset(config.data_cfg, SetType.train)
         self.mscale_loss = MultiScaleLoss()
         self.mse = MultiScaleMSE()
+        init_fn = WeightsInitMap[WeightsInitType.normal]
+        self.generator.apply(init_fn)
+        self.discriminator.apply(init_fn)
 
     def log_voxels(self, voxels, step: int, state: str, image: Optional[torch.Tensor]):
         self.loggers[1].log_voxels(voxels, step, state, image)

@@ -17,6 +17,16 @@ class ImageEncoder(nn.Module):
             tp: LayerType = layer['type']
             params = layer['params']
             init_fn = LayerInitMap[tp]
+            if tp == LayerType.L2Encoder:
+                sub_layer = layer['layers'][0]
+                enc_tp = sub_layer['type']
+                enc_params = sub_layer['params']
+                sub_init_fn = LayerInitMap[enc_tp]
+                sub_module = sub_init_fn(**enc_params)
+                params = {
+                    **params,
+                    'enc_layer': sub_module
+                }
             module = init_fn(**params)
             if module is None:
                 raise ValueError('module cannot be None')

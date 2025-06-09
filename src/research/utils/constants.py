@@ -1,4 +1,4 @@
-from research.utils.enums import WeightsInitType, OptimizerType
+from research.utils.enums import WeightsInitType, OptimizerType, LayerType
 from research.utils.initializers.layer_initializers import *
 from research.utils.initializers.optimizer_initializers import *
 from research.utils.initializers.weights_initializers import *
@@ -10,6 +10,8 @@ LayerInitMap = {
     LayerType.AdapterLayer: adapter_layer,
     LayerType.Conv2d: conv2d,
     LayerType.L2Attention: l2attention,
+    LayerType.L2EncoderLayer: l2encoder_layer,
+    LayerType.L2DecoderLayer: l2decoder_layer,
     LayerType.L2Encoder: l2encoder,
     LayerType.L2Decoder: l2decoder,
     LayerType.AdaConv2d: adaconv2d,

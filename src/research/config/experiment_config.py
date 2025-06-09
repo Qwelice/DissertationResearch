@@ -4,7 +4,7 @@ from easydict import EasyDict
 
 from research.config.data_config import data_cfg
 from research.config.model_config import model_cfg
-from research.utils.enums import OptimizerType
+from research.utils.enums import OptimizerType, WeightsInitType
 from research.utils.io import root_dir
 
 ROOT_DIR = root_dir()
@@ -40,7 +40,7 @@ experiment_cfg.train.shuffle = True
 experiment_cfg.train.num_workers = 3
 experiment_cfg.train.drop_last = True
 experiment_cfg.train.num_epochs = 15
-experiment_cfg.train.warmup_steps = 500
+experiment_cfg.train.warmup_steps = 1000
 experiment_cfg.train.warmup_max = 600
 experiment_cfg.train.accelerator = 'gpu'
 experiment_cfg.train.preferred_device = 'cuda'
@@ -66,6 +66,21 @@ experiment_cfg.optimizer = {
 
 experiment_cfg.generator = EasyDict()
 experiment_cfg.discriminator = EasyDict()
+
+experiment_cfg.generator.init_weights = {
+    'type': WeightsInitType.normal,
+    'params': {
+        'std': 0.02,
+        'mean': 0.0
+    }
+}
+experiment_cfg.discriminator.init_weights = {
+    'type': WeightsInitType.normal,
+    'params': {
+        'std': 0.02,
+        'mean': 0.0
+    }
+}
 
 # Alternative optimizers params
 experiment_cfg.generator.optimizer = {

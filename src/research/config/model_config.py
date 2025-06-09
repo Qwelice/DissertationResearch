@@ -113,12 +113,20 @@ model_cfg.image_encoder.layers = [
     {
         'type': LayerType.L2Encoder,
         'params': {
-            'd_model': DESCRIPTOR_DIM,
-            'nhead': 8,
-            'dim_feedforward': 2048,
-            'activation': 'gelu',
-            'tiq_qk': True
+            'num_layers': 4
         },
+        'layers': [
+            {
+                'type': LayerType.L2EncoderLayer,
+                'params': {
+                    'd_model': DESCRIPTOR_DIM,
+                    'nhead': 8,
+                    'dim_feedforward': 2048,
+                    'activation': 'gelu',
+                    'tiq_qk': True
+                }
+            }
+        ],
         'validate': {
             'input': (49, DESCRIPTOR_DIM),
             'output': (49, DESCRIPTOR_DIM)

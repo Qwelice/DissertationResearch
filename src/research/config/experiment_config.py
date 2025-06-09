@@ -8,13 +8,14 @@ from research.utils.enums import OptimizerType
 from research.utils.io import root_dir
 
 ROOT_DIR = root_dir()
+LEARNING_RATE = 1e-3
+
 
 experiment_cfg = EasyDict()
 experiment_cfg.seed = 1488
 experiment_cfg.set_name = 'modelnet10'
-experiment_cfg.num_epochs = 10
-experiment_cfg.use_warmup = True
-experiment_cfg.warmup_steps = 500
+experiment_cfg.logfile_format = '%Y_%m_%d-%H_%M_%S'
+experiment_cfg.logdir_format = '%Y_%m_%d'
 
 # Internal logs params
 experiment_cfg.logs = EasyDict()
@@ -34,10 +35,16 @@ experiment_cfg.logs.textual.save_dir = os.path.join(ROOT_DIR, 'logs', 'internal'
 # Training params
 experiment_cfg.train = EasyDict()
 experiment_cfg.train.batch_size = 32
-experiment_cfg.train.learning_rate = 1e-3
+experiment_cfg.train.learning_rate = LEARNING_RATE
 experiment_cfg.train.shuffle = True
 experiment_cfg.train.num_workers = 3
 experiment_cfg.train.drop_last = True
+experiment_cfg.train.num_epochs = 10
+experiment_cfg.train.warmup_steps = 500
+experiment_cfg.train.warmup_max = 600
+experiment_cfg.train.accelerator = 'gpu'
+experiment_cfg.train.preferred_device = 'cuda'
+experiment_cfg.train.log_every_n_steps = 25
 
 # Evaluation params
 experiment_cfg.eval = EasyDict()
@@ -52,7 +59,8 @@ experiment_cfg.optimizer = {
     'type': OptimizerType.adam,
     'params': {
         'params': None,
-        'betas': [0.9, 0.999]
+        'betas': [0.9, 0.999],
+        'lr': LEARNING_RATE
     }
 }
 
@@ -64,14 +72,16 @@ experiment_cfg.generator.optimizer = {
     'type': OptimizerType.adam,
     'params': {
         'params': None,
-        'betas': [0.9, 0.999]
+        'betas': [0.9, 0.999],
+        'lr': LEARNING_RATE
     }
 }
 experiment_cfg.discriminator.optimizer = {
     'type': OptimizerType.adam,
     'params': {
         'params': None,
-        'betas': [0.9, 0.999]
+        'betas': [0.9, 0.999],
+        'lr': LEARNING_RATE
     }
 }
 
@@ -84,9 +94,11 @@ experiment_cfg.tensorflow.log_dir = os.path.join(ROOT_DIR, 'logs', 'api', 'tenso
 experiment_cfg.tensorflow.experiment_name = 'GAMMA-modelnet10'
 
 # Checkpoint params
-experiment_cfg.ckpt_dir = os.path.join(ROOT_DIR, 'models')
-experiment_cfg.monitor = 'val_loss'
-experiment_cfg.mode = 'min'
+experiment_cfg.ckpt_dir = os.path.join(ROOT_DIR, 'models', 'GAMMA-modelnet10')
+experiment_cfg.monitor = 'val_dis_acc'
+experiment_cfg.mode = 'max'
+experiment_cfg.save_last = True
+experiment_cfg.save_top_k = 10
 
 experiment_cfg.data_cfg = data_cfg
 experiment_cfg.model_cfg = model_cfg

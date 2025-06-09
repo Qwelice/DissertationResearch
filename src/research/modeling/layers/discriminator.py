@@ -33,7 +33,6 @@ class Predictor(nn.Module):
         x = conditional + unconditional
         x = torch.flatten(x, start_dim=1)
         x = self.fc(x)
-        x = self.sigma(x)
         return x
 
 
@@ -62,7 +61,7 @@ class DiscriminatorLayer(nn.Module):
         if self.self_atten is None:
             return x
         B, _, H, W = x.shape
-        pos = get_2d_sin_cos_pos_embed(H // self.patch_size, W // self.patch_size, self.self_atten.embed_dim)
+        pos = get_2d_sin_cos_pos_embed(H // self.patch_size, W // self.patch_size, self.self_atten.embed_dim).to(x.device)
         x = split_into_patches(x, patch_size=self.patch_size)
         x = self.to_tokens(x)
         x = x + pos
@@ -72,6 +71,8 @@ class DiscriminatorLayer(nn.Module):
         return x
 
     def forward(self, x):
+        if x.ndim == 5:
+            x = x.squeeze(1)
         x = self.conv(x)
         x = self._self_attn(x)
         return x

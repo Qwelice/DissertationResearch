@@ -24,7 +24,7 @@ data_cfg.transforms.eval = EasyDict()
 data_cfg.transforms.reduction = {
     'type': ReductionType.max,
     'rank': 2,
-    'levels': 3
+    'levels': 4
 }
 
 data_cfg.transforms.train.image = tf_v2.Compose([

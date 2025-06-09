@@ -9,4 +9,10 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    from research.engine.lightning.setup import setup
+
+    data, model, trainer = setup()
+    trainer.fit(model=model,
+                datamodule=data)
+
+    # main()

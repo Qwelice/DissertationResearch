@@ -84,7 +84,7 @@ class GeneratorLayer(nn.Module):
         B, _, H, W = x.shape
         pos = get_2d_sin_cos_pos_embed(H // self.patch_size,
                                        W // self.patch_size,
-                                       self.emb_dim).unsqueeze(0).expand(B, -1, -1)
+                                       self.emb_dim).unsqueeze(0).expand(B, -1, -1).to(x.device)
         x = split_into_patches(x, self.patch_size)
         x = self.to_tokens(x)
         x = x + pos

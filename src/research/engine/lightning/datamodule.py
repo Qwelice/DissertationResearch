@@ -35,7 +35,7 @@ class MainDataModule(pl.LightningDataModule):
     def setup(self, stage: str) -> None:
         self.trainset = Modelnet10Dataset(self.config.data_cfg, SetType.train, pyramidal_voxels=True)
         self.evalset = Modelnet10Dataset(self.config.data_cfg, SetType.eval, pyramidal_voxels=True)
-        self.innerset = Modelnet10Dataset(self.config.data_cfg, SetType.train, pyramidal_voxels=True)
+        # self.innerset = Modelnet10Dataset(self.config.data_cfg, SetType.train, pyramidal_voxels=True)
 
     def train_dataloader(self) -> TRAIN_DATALOADERS:
         batch_size = self.config.train.batch_size

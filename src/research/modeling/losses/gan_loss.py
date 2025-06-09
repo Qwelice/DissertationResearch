@@ -5,7 +5,7 @@ from torch import nn
 class GANLoss(nn.Module):
     def __init__(self):
         super(GANLoss, self).__init__()
-        self.bce = nn.BCELoss()
+        self.bce = nn.BCEWithLogitsLoss()
 
     def D_loss(self, real_preds, fake_preds):
         real_labels = torch.ones_like(real_preds)

@@ -5,6 +5,8 @@ from typing import Union, Any, Optional, override, List
 
 from pytorch_lightning.loggers import Logger
 from pytorch_lightning.utilities import rank_zero_only
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -15,8 +17,8 @@ class VisualLogger(Logger):
         super().__init__()
         self.config = config
         self._date = datetime.now()
-        self._running_dir = self._date.strftime("%Y%m%d")
-        self._experiment_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+        self._running_dir = self._date.strftime(config.logdir_format)
+        self._experiment_id = datetime.now().strftime(config.logfile_format)
         self._voxel_tag = self.config.logs.visual.voxel_tag
         self.threshold = self.config.logs.visual.voxel_threshold
 
@@ -42,24 +44,37 @@ class VisualLogger(Logger):
         return save_dir
 
     @rank_zero_only
-    def log_voxels(self, voxels: List[torch.Tensor], step: int):
-        for voxel in range(voxels):
-            for i in range(min(len(voxel), 4)):
-                if voxel.dim() == 5:
-                    voxel = voxel.squeeze(1)
+    def log_voxels(self, voxels: List[torch.Tensor], step: int, image: Optional[torch.Tensor] = None):
+        B = voxels[0].shape[0]
+        n_examples = min(B, 4)
 
-                voxel = voxel.detach().cpu().numpy()
-                v = voxels[i]
-                fig = plt.figure(figsize=(4, 4))
-                ax = fig.add_subplot(111, projection='3d')
+        for i in range(n_examples):
+            n_cols = 1 + len(voxels)
+            fig = plt.figure(figsize=(4 * n_cols, 4))
+
+            if image is not None:
+                img = image[i].detach().cpu()
+                if img.dim() == 3 and img.shape[0] in [1, 3]:
+                    img = img.permute(1, 2, 0)  # C, H, W -> H, W, C
+
+                ax_img = fig.add_subplot(1, n_cols, 1)
+                ax_img.imshow(img.numpy(), cmap='gray' if img.shape[2] == 1 else None)
+                ax_img.set_title("Original")
+                ax_img.axis('off')
+
+            for j, voxel_scale in enumerate(voxels):
+                v = voxel_scale[i].detach().cpu().numpy()
 
                 filled = v > self.threshold
                 x, y, z = np.where(filled)
 
-                ax.scatter(x, y, z, c=z, cmap='viridis', s=10)
-                ax.set_axis_off()
-                ax.view_init(30, 120)
+                ax_voxel = fig.add_subplot(1, n_cols, j + 2, projection='3d')
+                ax_voxel.scatter(x, y, z, c=z, cmap='viridis', s=10)
+                ax_voxel.view_init(30, 120)
+                ax_voxel.set_title(f"Scale {j + 1}")
+                ax_voxel.axis('off')
 
-                img_path = os.path.join(self.save_dir, f"{self._voxel_tag}_{step:06}_{i}.png")
-                plt.savefig(img_path)
-                plt.close(fig)
+            img_path = os.path.join(self.save_dir, f"{self._voxel_tag}_{step:06}_{i}.png")
+            plt.tight_layout()
+            plt.savefig(img_path)
+            plt.close(fig)

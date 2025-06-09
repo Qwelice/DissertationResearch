@@ -3,13 +3,20 @@ from argparse import Namespace
 from datetime import datetime
 from typing import Union, Any, Optional, override, List
 
+import PIL.Image
 from pytorch_lightning.loggers import Logger
 from pytorch_lightning.utilities import rank_zero_only
 import matplotlib
+
+from research.utils.rendering import VoxelRenderer
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torchvision.utils as vutils
+import torchvision.transforms.functional as F
+from PIL import Image
 
 
 class VisualLogger(Logger):
@@ -21,6 +28,7 @@ class VisualLogger(Logger):
         self._experiment_id = datetime.now().strftime(config.logfile_format)
         self._voxel_tag = self.config.logs.visual.voxel_tag
         self.threshold = self.config.logs.visual.voxel_threshold
+        self._renderer = VoxelRenderer()
 
     def log_metrics(self, metrics: dict[str, float], step: Optional[int] = None) -> None:
         pass
@@ -43,10 +51,68 @@ class VisualLogger(Logger):
         os.makedirs(save_dir, exist_ok=True)
         return save_dir
 
+    def _create_voxel_grid(self, image_batch: torch.Tensor, voxel_batches: list, clamp=True) -> Image.Image:
+        """
+        Args:
+            image_batch: torch.Tensor [B, C, 224, 224]
+            voxel_batches: list of np.ndarray [B, 256, 256, C], where C = 1 or 3
+            clamp: whether to clamp image_batch to [0,1]
+        Returns:
+            PIL.Image: the resulting grid image
+        """
+        B = image_batch.shape[0]
+        if clamp:
+            image_batch = image_batch.clamp(0, 1)
+
+        rows = []
+        for i in range(B):
+            row_images = []
+
+            # --- Process input image ---
+            img = image_batch[i]  # [C, 224, 224]
+            img_pil = F.to_pil_image(img)
+
+            # --- Add to row ---
+            row_images.append(img_pil)
+
+            # --- Process voxel batches ---
+            for voxel_np in voxel_batches:
+                vox_img_np = voxel_np[i]  # [256, 256, C]
+                vox_img_np = np.clip(vox_img_np, 0, 1)
+                vox_img_np = (vox_img_np * 255).astype(np.uint8)
+                vox_pil = Image.fromarray(vox_img_np)
+                vox_pil = vox_pil.resize((224, 224), Image.Resampling.BILINEAR)
+                row_images.append(vox_pil)
+
+            # --- Concat row ---
+            row_concat = Image.new("RGB", (224 * len(row_images), 224))
+            for j, img in enumerate(row_images):
+                row_concat.paste(img.convert("RGB"), (j * 224, 0))
+            rows.append(row_concat)
+
+        # --- Stack all rows ---
+        grid = Image.new("RGB", (224 * len(row_images), 224 * B))
+        for k, row in enumerate(rows):
+            grid.paste(row, (0, k * 224))
+
+        return grid
+
     @rank_zero_only
+    def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: torch.Tensor):
+        voxel_images = self._renderer.render_voxels(voxels)
+        grid = self._create_voxel_grid(image, voxel_images)
+        save_dir = os.path.join(self.save_dir, state)
+        os.makedirs(save_dir, exist_ok=True)
+        img_path = os.path.join(save_dir, f"{self._voxel_tag}_{state}_{step:06}.png")
+        grid.save(img_path)
+
+
+def deprecated_fn():
     def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: Optional[torch.Tensor] = None):
         B = voxels[0].shape[0]
         n_examples = min(B, 4)
+        device = voxels[0].device
+        self._renderer.render_voxels(voxels)
 
         for i in range(n_examples):
             n_cols = 1 + len(voxels)

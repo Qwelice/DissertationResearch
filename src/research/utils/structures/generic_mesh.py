@@ -9,8 +9,6 @@ from pytorch3d.renderer import TexturesVertex
 from pytorch3d.structures import Meshes
 import open3d as o3d
 
-from src.structures.voxel import Voxel
-
 T = TypeVar('T')
 
 
@@ -160,13 +158,3 @@ class GenericMesh:
     def to_center(self: T) -> T:
         self.translate(-self.centroid)
         return self
-
-    def voxelized(self, grid_size: int) -> Voxel:
-        mesh = self.as_open3d()
-        voxel_size = 1.0 / grid_size
-        voxel_grid = o3d.geometry.VoxelGrid.create_from_triangle_mesh(input=mesh, voxel_size=voxel_size)
-        indices = list(map(lambda x: x.grid_index, voxel_grid.get_voxels()))
-        indices = np.array(indices)
-        indices = torch.tensor(indices, dtype=torch.long)
-        indices = torch.clamp(indices, 0, grid_size - 1)
-        return Voxel(indices, grid_size=grid_size, device=self.device)

@@ -14,6 +14,8 @@ class VisualLogger(Logger):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self._date = datetime.now()
+        self._running_dir = self._date.strftime("%Y%m%d")
         self._experiment_id = datetime.now().strftime("%Y%m%d-%H%M%S")
         self._voxel_tag = self.config.logs.visual.voxel_tag
         self.threshold = self.config.logs.visual.voxel_threshold
@@ -35,7 +37,7 @@ class VisualLogger(Logger):
     @override
     @property
     def save_dir(self) -> Optional[str]:
-        save_dir = self.config.logs.visual.save_dir
+        save_dir = os.path.join(self.config.logs.visual.save_dir, f'{self._running_dir}')
         os.makedirs(save_dir, exist_ok=True)
         return save_dir
 

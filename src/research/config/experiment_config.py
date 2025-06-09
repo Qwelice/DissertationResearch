@@ -39,7 +39,7 @@ experiment_cfg.train.learning_rate = LEARNING_RATE
 experiment_cfg.train.shuffle = True
 experiment_cfg.train.num_workers = 3
 experiment_cfg.train.drop_last = True
-experiment_cfg.train.num_epochs = 10
+experiment_cfg.train.num_epochs = 15
 experiment_cfg.train.warmup_steps = 500
 experiment_cfg.train.warmup_max = 600
 experiment_cfg.train.accelerator = 'gpu'
@@ -48,10 +48,10 @@ experiment_cfg.train.log_every_n_steps = 25
 
 # Evaluation params
 experiment_cfg.eval = EasyDict()
-experiment_cfg.eval.batch_size = 1
+experiment_cfg.eval.batch_size = 32
 experiment_cfg.eval.shuffle = False
 experiment_cfg.eval.num_workers = 3
-experiment_cfg.eval.drop_last = False
+experiment_cfg.eval.drop_last = True
 
 # Optimizer params
 experiment_cfg.optimizer = EasyDict()

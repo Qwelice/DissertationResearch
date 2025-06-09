@@ -33,6 +33,9 @@ class MainModule(pl.LightningModule):
         self.mscale_loss = MultiScaleLoss()
         self.mse = MultiScaleMSE()
 
+    def log_voxels(self, voxels, step: int, state: str, image: Optional[torch.Tensor]):
+        self.loggers[1].log_voxels(voxels, step, state, image)
+
     def generator_forward(self, image: torch.Tensor) -> Tuple[torch.Tensor]:
         descriptor = self.generator.get_descriptor(image)
         t_global = descriptor[:, -1, :].squeeze(1)
@@ -125,6 +128,8 @@ class MainModule(pl.LightningModule):
         self.log('train_dis_acc', dis_acc, prog_bar=False, on_step=True, on_epoch=True)
         self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
         self.log('train_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
+        if batch_idx == 0 or batch_idx == self.trainer.num_val_batches[0] - 1:
+            self.log_voxels(fakes, self.global_step, 'train', image)
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
         image = batch['image']
@@ -161,4 +166,4 @@ class MainModule(pl.LightningModule):
         self.log('val_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
         self.log('val_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
         if batch_idx == 0 or batch_idx == self.trainer.num_val_batches[0] - 1:
-            self.loggers[1].log_voxels(fakes, self.global_step, image)
+            self.log_voxels(fakes, self.global_step, 'eval', image)

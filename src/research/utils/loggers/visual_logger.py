@@ -44,7 +44,7 @@ class VisualLogger(Logger):
         return save_dir
 
     @rank_zero_only
-    def log_voxels(self, voxels: List[torch.Tensor], step: int, image: Optional[torch.Tensor] = None):
+    def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: Optional[torch.Tensor] = None):
         B = voxels[0].shape[0]
         n_examples = min(B, 4)
 
@@ -74,7 +74,7 @@ class VisualLogger(Logger):
                 ax_voxel.set_title(f"Scale {j + 1}")
                 ax_voxel.axis('off')
 
-            img_path = os.path.join(self.save_dir, f"{self._voxel_tag}_{step:06}_{i}.png")
+            img_path = os.path.join(self.save_dir, f"{self._voxel_tag}_{state}_{step:06}_{i}.png")
             plt.tight_layout()
             plt.savefig(img_path)
             plt.close(fig)

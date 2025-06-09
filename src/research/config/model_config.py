@@ -199,6 +199,7 @@ model_cfg.generator.layers = [
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
                     'dim_feedforward': 2048,
+                    'num_layers': 6,
                     'tiq_qk': True
                 }
             }
@@ -257,6 +258,7 @@ model_cfg.generator.layers = [
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
                     'dim_feedforward': 2048,
+                    'num_layers': 6,
                     'tiq_qk': True
                 }
             }
@@ -311,6 +313,7 @@ model_cfg.generator.layers = [
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
                     'dim_feedforward': 2048,
+                    'num_layers': 6,
                     'tiq_qk': True
                 }
             }
@@ -369,6 +372,7 @@ model_cfg.generator.layers = [
                     'dim_size': DESCRIPTOR_DIM,
                     'nhead': 8,
                     'dim_feedforward': 2048,
+                    'num_layers': 6,
                     'tiq_qk': True
                 }
             }
@@ -386,7 +390,7 @@ model_cfg.discriminator.layers = [
         'type': LayerType.DiscriminatorLayer,
         'params': {
             'input_size': 32,
-            'patch_size': 4,
+            'patch_size': 4
         },
         'layers': [
             {
@@ -406,6 +410,11 @@ model_cfg.discriminator.layers = [
         'params': {
             'input_size': 16,
             'patch_size': 2,
+            'dim_size': DESCRIPTOR_DIM,
+            'nhead': 8,
+            'dim_feedforward': 2048,
+            'num_layers': 6,
+            'tiq_qk': True
         },
         'layers': [
             {
@@ -417,14 +426,6 @@ model_cfg.discriminator.layers = [
                     'stride': 2,
                     'padding': 1
                 }
-            },
-            {
-                'type': LayerType.SelfL2Attention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    'tie_qk': True
-                }
             }
         ]
     },
@@ -433,6 +434,11 @@ model_cfg.discriminator.layers = [
         'params': {
             'input_size': 8,
             'patch_size': 2,
+            'dim_size': DESCRIPTOR_DIM,
+            'nhead': 8,
+            'dim_feedforward': 2048,
+            'num_layers': 6,
+            'tiq_qk': True
         },
         'layers': [
             {
@@ -444,14 +450,6 @@ model_cfg.discriminator.layers = [
                     'stride': 2,
                     'padding': 1
                 }
-            },
-            {
-                'type': LayerType.SelfL2Attention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    'tie_qk': True
-                }
             }
         ]
     },
@@ -459,7 +457,7 @@ model_cfg.discriminator.layers = [
         'type': LayerType.DiscriminatorLayer,
         'params': {
             'input_size': 4,
-            'patch_size': 2,
+            'patch_size': 2
         },
         'layers': [
             {

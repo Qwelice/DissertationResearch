@@ -5,6 +5,8 @@ from torch import nn
 
 from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.attention import L2MultiHeadAttention
+from research.modeling.layers.transformer import L2TransformerEncoderLayer
+from research.modeling.models.transformer import L2TransformerEncoder
 from research.utils.functions import split_into_patches, merge_patches, get_2d_sin_cos_pos_embed
 
 
@@ -42,14 +44,20 @@ class DiscriminatorLayer(nn.Module):
                     INPUT SIZE YOU'RE USING BEFORE DOWNSAMPLING]
     """
     def __init__(self, input_size: int, patch_size: int, conv: nn.Conv2d,
-                 self_atten: Optional[L2MultiHeadAttention]=None, activation: Optional[str]=None):
+                 dim_size: Optional[int]=None, nhead: Optional[int]=None,
+                 dim_feedforward: Optional[int]=None, num_layers: Optional[int]=None,
+                 activation: Optional[str]=None, tiq_qk: Optional[bool]=None,):
         super(DiscriminatorLayer, self).__init__()
         self.input_size = input_size // 2 * patch_size * patch_size
         self.patch_size = patch_size
         self.conv = conv
-        self.to_tokens = nn.Linear(self.input_size, self_atten.embed_dim) if self_atten is not None else None
-        self.from_tokens = nn.Linear(self_atten.embed_dim, self.input_size) if self_atten is not None else None
-        self.self_atten = self_atten
+        self.emb_dim = dim_size
+        self.to_tokens = nn.Linear(self.input_size, self.emb_dim) if dim_size else None
+        self.from_tokens = nn.Linear(self.emb_dim, self.input_size) if dim_size else None
+        encoder_layer = L2TransformerEncoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
+                                                  activation=activation, tiq_qk=tiq_qk) if dim_size else None
+        self.encoder = L2TransformerEncoder(encoder_layer, num_layers=num_layers) if encoder_layer else None
+
         if activation is None:
             activation = 'relu'
         if activation.lower() == 'relu':
@@ -58,14 +66,14 @@ class DiscriminatorLayer(nn.Module):
             self.activation = nn.GELU()
 
     def _self_attn(self, x):
-        if self.self_atten is None:
+        if self.encoder is None:
             return x
         B, _, H, W = x.shape
-        pos = get_2d_sin_cos_pos_embed(H // self.patch_size, W // self.patch_size, self.self_atten.embed_dim).to(x.device)
+        pos = get_2d_sin_cos_pos_embed(H // self.patch_size, W // self.patch_size, self.emb_dim).to(x.device)
         x = split_into_patches(x, patch_size=self.patch_size)
         x = self.to_tokens(x)
         x = x + pos
-        x, _ = self.self_atten(x, x, x)
+        x = self.encoder(x)
         x = self.from_tokens(x)
         x = merge_patches(x, self.patch_size)
         return x
@@ -73,6 +81,6 @@ class DiscriminatorLayer(nn.Module):
     def forward(self, x):
         if x.ndim == 5:
             x = x.squeeze(1)
-        x = self.conv(x)
+        x = self.activation(self.conv(x))
         x = self._self_attn(x)
         return x

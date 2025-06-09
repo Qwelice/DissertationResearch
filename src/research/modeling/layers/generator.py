@@ -6,25 +6,32 @@ from torch import nn
 from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.attention import L2MultiHeadAttention
 from research.modeling.layers.transformer import L2TransformerDecoderLayer
+from research.modeling.models.transformer import L2TransformerDecoder
 from research.utils.functions import split_into_patches, get_2d_sin_cos_pos_embed, merge_patches
 
 
 class VoxelFormer(nn.Module):
     def __init__(self, input_size: int, seq_size: int, dim_size: int, nhead: int, dim_feedforward: int,
-                 activation: Optional[str]=None, tiq_qk: Optional[bool]=None, is_l2: Optional[bool]=None):
+                 num_layers: int, activation: Optional[str]=None, tiq_qk: Optional[bool]=None, is_l2: Optional[bool]=None):
         super(VoxelFormer, self).__init__()
         self.input_size = input_size
         self.seq_size = seq_size
         self.dim_size = dim_size
         self.queries = nn.Parameter(torch.randn(1, seq_size, dim_size), requires_grad=True)
+        if activation is None or 'relu':
+            activation = 'relu'
+        else:
+            activation = 'gelu'
+
         is_l2 = is_l2 if is_l2 is not None else False
         if is_l2:
-            self.decoder = L2TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
+            decoder_layer = L2TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                  activation=activation, tie_qk=tiq_qk)
+            self.decoder = L2TransformerDecoder(decoder_layer, num_layers=num_layers)
         else:
-            self.decoder_layer = nn.TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
-                                                      activation='relu', batch_first=True)
-            self.decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=6)
+            decoder_layer = nn.TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
+                                                      activation=activation, batch_first=True)
+            self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
         self.x = nn.Linear(dim_size, input_size)
         self.y = nn.Linear(dim_size, input_size)
         self.z = nn.Linear(dim_size, input_size)

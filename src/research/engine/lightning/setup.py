@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from research.engine.lightning.datamodule import MainDataModule
@@ -20,8 +20,13 @@ def setup_callbacks(exp_cfg):
                                     mode=exp_cfg.mode,
                                     save_last=exp_cfg.save_last,
                                     save_top_k=exp_cfg.save_top_k)
+    early_stop_callback = EarlyStopping(monitor='train_gen_loss',
+                                        mode='min',
+                                        patience=10,
+                                        check_finite=True)
 
     callbacks.append(ckpt_callback)
+    callbacks.append(early_stop_callback)
     return callbacks
 
 def setup_loggers(exp_cfg):
@@ -69,5 +74,3 @@ def setup():
     model = setup_model(exp_cfg)
     trainer = setup_trainer(exp_cfg)
     return data, model, trainer
-
-__all__ = ['setup']

@@ -4,3 +4,4 @@
 data/datasets/*
 logs/*
 **/__pycache__/*
+models/*

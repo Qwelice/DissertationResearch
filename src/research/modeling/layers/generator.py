@@ -11,14 +11,20 @@ from research.utils.functions import split_into_patches, get_2d_sin_cos_pos_embe
 
 class VoxelFormer(nn.Module):
     def __init__(self, input_size: int, seq_size: int, dim_size: int, nhead: int, dim_feedforward: int,
-                 activation: Optional[str]=None, tiq_qk: Optional[bool]=None):
+                 activation: Optional[str]=None, tiq_qk: Optional[bool]=None, is_l2: Optional[bool]=None):
         super(VoxelFormer, self).__init__()
         self.input_size = input_size
         self.seq_size = seq_size
         self.dim_size = dim_size
         self.queries = nn.Parameter(torch.randn(1, seq_size, dim_size), requires_grad=True)
-        self.decoder = L2TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
+        is_l2 = is_l2 if is_l2 is not None else False
+        if is_l2:
+            self.decoder = L2TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
                                                  activation=activation, tie_qk=tiq_qk)
+        else:
+            self.decoder_layer = nn.TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
+                                                      activation='relu', batch_first=True)
+            self.decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=6)
         self.x = nn.Linear(dim_size, input_size)
         self.y = nn.Linear(dim_size, input_size)
         self.z = nn.Linear(dim_size, input_size)

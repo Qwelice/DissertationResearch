@@ -34,7 +34,7 @@ experiment_cfg.logs.textual.save_dir = os.path.join(ROOT_DIR, 'logs', 'internal'
 
 # Training params
 experiment_cfg.train = EasyDict()
-experiment_cfg.train.batch_size = 32
+experiment_cfg.train.batch_size = 64
 experiment_cfg.train.learning_rate = LEARNING_RATE
 experiment_cfg.train.shuffle = True
 experiment_cfg.train.num_workers = 3
@@ -48,7 +48,7 @@ experiment_cfg.train.log_every_n_steps = 25
 
 # Evaluation params
 experiment_cfg.eval = EasyDict()
-experiment_cfg.eval.batch_size = 32
+experiment_cfg.eval.batch_size = 64
 experiment_cfg.eval.shuffle = False
 experiment_cfg.eval.num_workers = 3
 experiment_cfg.eval.drop_last = True

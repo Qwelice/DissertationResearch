@@ -36,7 +36,7 @@ class MainModule(pl.LightningModule):
         self.generator.apply(init_fn)
         self.discriminator.apply(init_fn)
 
-    def log_voxels(self, voxels, step: int, state: str, image: Optional[torch.Tensor]):
+    def log_voxels(self, voxels, step: int, state: str, image: torch.Tensor):
         self.loggers[1].log_voxels(voxels, step, state, image)
 
     def generator_forward(self, image: torch.Tensor) -> Tuple[torch.Tensor]:

@@ -55,50 +55,53 @@ class VisualLogger(Logger):
         """
         Args:
             image_batch: torch.Tensor [B, C, 224, 224]
-            voxel_batches: list of np.ndarray [B, 256, 256, C], where C = 1 or 3
+            voxel_batches: list of torch.Tensor [B, 256, 256, C], where C = 1 or 3
             clamp: whether to clamp image_batch to [0,1]
         Returns:
             PIL.Image: the resulting grid image
         """
-        B = image_batch.shape[0]
+        B = image_batch.size(0)
+
         if clamp:
             image_batch = image_batch.clamp(0, 1)
+            voxel_batches = [vb.clamp(0, 1) for vb in voxel_batches]
 
-        rows = []
+        image_batch = image_batch.cpu()
+        voxel_batches = [vb.cpu() for vb in voxel_batches]
+
+        grid_images = []
+
         for i in range(B):
-            row_images = []
+            row = []
 
-            # --- Process input image ---
-            img = image_batch[i]  # [C, 224, 224]
-            img_pil = F.to_pil_image(img)
+            # Object image: [C, H, W] -> [H, W, C]
+            obj_img = (image_batch[i] * 255).to(torch.uint8).permute(1, 2, 0).numpy()
+            obj_pil = Image.fromarray(obj_img)
+            row.append(obj_pil)
 
-            # --- Add to row ---
-            row_images.append(img_pil)
+            # Voxels
+            for vb in voxel_batches:
+                vox = vb[i]  # [256, 256, C]
+                vox_img = (vox * 255).to(torch.uint8).numpy()
 
-            # --- Process voxel batches ---
-            for voxel_np in voxel_batches:
-                vox_img_np = voxel_np[i]  # [256, 256, C]
-                vox_img_np = np.clip(vox_img_np, 0, 1)
-                vox_img_np = (vox_img_np * 255).astype(np.uint8)
-                vox_pil = Image.fromarray(vox_img_np)
-                vox_pil = vox_pil.resize((224, 224), Image.Resampling.BILINEAR)
-                row_images.append(vox_pil)
+                # Handle grayscale C=1 case
+                if vox_img.shape[2] == 1:
+                    vox_img = np.squeeze(vox_img, axis=2)
 
-            # --- Concat row ---
-            row_concat = Image.new("RGB", (224 * len(row_images), 224))
-            for j, img in enumerate(row_images):
-                row_concat.paste(img.convert("RGB"), (j * 224, 0))
-            rows.append(row_concat)
+                vox_pil = Image.fromarray(vox_img)
+                vox_pil = vox_pil.resize((224, 224), resample=Image.Resampling.BILINEAR)
+                row.append(vox_pil)
 
-        # --- Stack all rows ---
-        grid = Image.new("RGB", (224 * len(row_images), 224 * B))
-        for k, row in enumerate(rows):
-            grid.paste(row, (0, k * 224))
+            row_concat = np.concatenate([np.array(img) for img in row], axis=1)
+            grid_images.append(row_concat)
 
-        return grid
+        full_grid = np.concatenate(grid_images, axis=0)
+        final_img = Image.fromarray(full_grid)
+        return final_img
 
     @rank_zero_only
     def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: torch.Tensor):
+        self._renderer.device = image.device
         voxel_images = self._renderer.render_voxels(voxels)
         grid = self._create_voxel_grid(image, voxel_images)
         save_dir = os.path.join(self.save_dir, state)
@@ -111,7 +114,6 @@ def deprecated_fn():
     def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: Optional[torch.Tensor] = None):
         B = voxels[0].shape[0]
         n_examples = min(B, 4)
-        device = voxels[0].device
         self._renderer.render_voxels(voxels)
 
         for i in range(n_examples):

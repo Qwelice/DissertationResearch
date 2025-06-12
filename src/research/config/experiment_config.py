@@ -34,7 +34,7 @@ experiment_cfg.logs.textual.save_dir = os.path.join(ROOT_DIR, 'logs', 'internal'
 
 # Training params
 experiment_cfg.train = EasyDict()
-experiment_cfg.train.batch_size = 64
+experiment_cfg.train.batch_size = 32
 experiment_cfg.train.learning_rate = LEARNING_RATE
 experiment_cfg.train.shuffle = True
 experiment_cfg.train.num_workers = 3
@@ -48,7 +48,7 @@ experiment_cfg.train.log_every_n_steps = 25
 
 # Evaluation params
 experiment_cfg.eval = EasyDict()
-experiment_cfg.eval.batch_size = 64
+experiment_cfg.eval.batch_size = 32
 experiment_cfg.eval.shuffle = False
 experiment_cfg.eval.num_workers = 3
 experiment_cfg.eval.drop_last = True
@@ -56,11 +56,12 @@ experiment_cfg.eval.drop_last = True
 # Optimizer params
 experiment_cfg.optimizer = EasyDict()
 experiment_cfg.optimizer = {
-    'type': OptimizerType.adam,
+    'type': OptimizerType.adamw,
     'params': {
         'params': None,
         'betas': [0.9, 0.999],
-        'lr': LEARNING_RATE
+        'lr': LEARNING_RATE,
+        'weight_decay': 1e-4
     }
 }
 
@@ -70,33 +71,35 @@ experiment_cfg.discriminator = EasyDict()
 experiment_cfg.generator.init_weights = {
     'type': WeightsInitType.normal,
     'params': {
-        'std': 0.02,
+        'std': 1,
         'mean': 0.0
     }
 }
 experiment_cfg.discriminator.init_weights = {
     'type': WeightsInitType.normal,
     'params': {
-        'std': 0.02,
+        'std': 1,
         'mean': 0.0
     }
 }
 
 # Alternative optimizers params
 experiment_cfg.generator.optimizer = {
-    'type': OptimizerType.adam,
+    'type': OptimizerType.adamw,
     'params': {
         'params': None,
         'betas': [0.9, 0.999],
-        'lr': LEARNING_RATE
+        'lr': LEARNING_RATE,
+        'weight_decay': 1e-4
     }
 }
 experiment_cfg.discriminator.optimizer = {
-    'type': OptimizerType.adam,
+    'type': OptimizerType.adamw,
     'params': {
         'params': None,
         'betas': [0.9, 0.999],
-        'lr': LEARNING_RATE
+        'lr': LEARNING_RATE,
+        'weight_decay': 1e-4
     }
 }
 

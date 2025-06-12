@@ -46,5 +46,7 @@ ParametersInitMap = {
 }
 
 OptimizersInitMap = {
-    OptimizerType.adam: adam
+    OptimizerType.adam: adam,
+    OptimizerType.adamw: adamw,
+    OptimizerType.sgd: sgd
 }

@@ -98,49 +98,11 @@ class VisualLogger(Logger):
         return final_img
 
     @rank_zero_only
-    def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: torch.Tensor):
+    def log_voxels(self, voxels: List[torch.Tensor], epoch: int, batch_idx: int, state: str, image: torch.Tensor):
         self._renderer.device = image.device
         voxel_images = self._renderer.render_voxels(voxels)
         grid = self._create_voxel_grid(image, voxel_images)
         save_dir = os.path.join(self.save_dir, state)
         os.makedirs(save_dir, exist_ok=True)
-        img_path = os.path.join(save_dir, f"{self._voxel_tag}_{state}_{step:06}.png")
+        img_path = os.path.join(save_dir, f"{self._voxel_tag}_{state}_epoch-{epoch}_batch-{batch_idx}.png")
         grid.save(img_path)
-
-
-def deprecated_fn():
-    def log_voxels(self, voxels: List[torch.Tensor], step: int, state: str, image: Optional[torch.Tensor] = None):
-        B = voxels[0].shape[0]
-        n_examples = min(B, 4)
-        self._renderer.render_voxels(voxels)
-
-        for i in range(n_examples):
-            n_cols = 1 + len(voxels)
-            fig = plt.figure(figsize=(4 * n_cols, 4))
-
-            if image is not None:
-                img = image[i].detach().cpu()
-                if img.dim() == 3 and img.shape[0] in [1, 3]:
-                    img = img.permute(1, 2, 0)  # C, H, W -> H, W, C
-
-                ax_img = fig.add_subplot(1, n_cols, 1)
-                ax_img.imshow(img.numpy(), cmap='gray' if img.shape[2] == 1 else None)
-                ax_img.set_title("Original")
-                ax_img.axis('off')
-
-            for j, voxel_scale in enumerate(voxels):
-                v = voxel_scale[i].detach().cpu().numpy()
-
-                filled = v > self.threshold
-                x, y, z = np.where(filled)
-
-                ax_voxel = fig.add_subplot(1, n_cols, j + 2, projection='3d')
-                ax_voxel.scatter(x, y, z, c=z, cmap='viridis', s=10)
-                ax_voxel.view_init(30, 120)
-                ax_voxel.set_title(f"Scale {j + 1}")
-                ax_voxel.axis('off')
-
-            img_path = os.path.join(self.save_dir, f"{self._voxel_tag}_{state}_{step:06}_{i}.png")
-            plt.tight_layout()
-            plt.savefig(img_path)
-            plt.close(fig)

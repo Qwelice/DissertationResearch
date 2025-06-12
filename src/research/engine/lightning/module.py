@@ -36,8 +36,8 @@ class MainModule(pl.LightningModule):
         self.generator.apply(init_fn)
         self.discriminator.apply(init_fn)
 
-    def log_voxels(self, voxels, step: int, state: str, image: torch.Tensor):
-        self.loggers[1].log_voxels(voxels, step, state, image)
+    def log_voxels(self, voxels, epoch: int, batch_idx: int, state: str, image: torch.Tensor):
+        self.loggers[1].log_voxels(voxels, epoch, batch_idx, state, image)
 
     def generator_forward(self, image: torch.Tensor) -> Tuple[torch.Tensor]:
         descriptor = self.generator.get_descriptor(image)
@@ -129,10 +129,12 @@ class MainModule(pl.LightningModule):
         # Logs
         # ====
         self.log('train_dis_acc', dis_acc, prog_bar=False, on_step=True, on_epoch=True)
-        self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
-        self.log('train_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
+        self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=False)
+        self.log('train_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=False)
+        self.log('train_dis_loss_total', dis_loss.item(), prog_bar=False, on_step=False, on_epoch=True)
+        self.log('train_gen_loss_total', gen_loss.item(), prog_bar=False, on_step=False, on_epoch=True)
         if batch_idx == 0 or self.trainer.is_last_batch:
-            self.log_voxels(fakes, self.global_step, 'train', image)
+            self.log_voxels(fakes, self.current_epoch, batch_idx, 'train', image)
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
         image = batch['image']
@@ -166,7 +168,7 @@ class MainModule(pl.LightningModule):
         # Logs
         # ====
         self.log('val_dis_acc', dis_acc, prog_bar=False, on_step=True, on_epoch=True)
-        self.log('val_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
-        self.log('val_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=True)
+        self.log('val_dis_loss', dis_loss.item(), prog_bar=False, on_step=True, on_epoch=True)
+        self.log('val_gen_loss', gen_loss.item(), prog_bar=False, on_step=True, on_epoch=True)
         if batch_idx == 0 or batch_idx == self.trainer.num_val_batches[0] - 1:
-            self.log_voxels(fakes, self.global_step, 'eval', image)
+            self.log_voxels(fakes, self.current_epoch, batch_idx, 'eval', image)

@@ -12,7 +12,7 @@ SetType = IntEnum('SetType', ('train', 'eval', 'test'))
 ReductionType = IntEnum('ReductionType', ('max', 'avg'))
 WeightsInitType = IntEnum('WeightsInitType', ('normal', 'uniform', 'xavier_uniform', 'xavier_normal',
                                               'kaiming_uniform', 'kaiming_normal'))
-OptimizerType = IntEnum('OptimizerType', ('sgd', 'adam'))
+OptimizerType = IntEnum('OptimizerType', ('sgd', 'adam', 'adamw'))
 SchedulerType = IntEnum('SchedulerType', ('cosine_annealing', 'none'))
 
 

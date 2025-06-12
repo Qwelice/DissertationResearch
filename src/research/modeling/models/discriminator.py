@@ -36,35 +36,13 @@ class Discriminator(nn.Module):
         for layer in cfg.layers:
             tp: LayerType = layer['type']
             init_fn = LayerInitMap[tp]
-            params: Dict = {
-                **layer['params'],
-                **self._get_layer_params(layer)
-            }
+            params: Dict = layer['params']
             module = init_fn(**params)
             if module is None:
                 raise ValueError('module cannot be None')
             else:
                 layers.append(module)
         return nn.ModuleList(layers)
-
-    def _get_layer_params(self, layer_config: Dict) -> nn.Module:
-        parameters = {}
-        layers = layer_config['layers']
-        for layer in layers:
-            tp = layer['type']
-            params = layer['params']
-            init_fn = LayerInitMap[tp]
-            module = init_fn(**params)
-            if tp == LayerType.Predictor:
-                key = 'predictor'
-            elif tp == LayerType.Conv2d:
-                key = 'conv'
-            elif tp == LayerType.SelfL2Attention:
-                key = 'self_atten'
-            else:
-                raise ValueError(f'unknown parameter: {tp}')
-            parameters[key] = module
-        return parameters
 
     def get_descriptor(self, x):
         descriptor = self.image_encoder(x)

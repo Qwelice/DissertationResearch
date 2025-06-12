@@ -149,11 +149,14 @@ class GeneratorLayer(nn.Module):
         B, C, H, W = x.shape
         L = H * W
         flatten = x.view(B, C, L).permute(0, 2, 1) # B, L, C
-
+        style_2 = style
+        if style_2.ndim == 2:
+            style_2 = style_2.unsqueeze(1)
+        flatten = torch.cat([flatten, style_2], dim=1)
         x = self.self_attention(flatten)
+        x = x[:, :-1, :] # drop style
         x = self.cross_attention(x, t_local)
         x = self.ffn(x)
-
         features = x.permute(0, 2, 1).view(B, C, H, W)
         if self.need_patching:
             features = self.unpatchify(features)

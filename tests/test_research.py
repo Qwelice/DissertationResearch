@@ -17,7 +17,7 @@ def test_resnet18():
     print(out.shape)
 
 
-def test_generator_layer():
+def test_generator():
     import torch
     from research.config.model_config import model_cfg
     from research.modeling.models.generator import Generator

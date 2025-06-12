@@ -39,7 +39,9 @@ class DiscriminatorLayer(nn.Module):
     def __init__(self, voxel_size: int, out_channels: int, emb_dim: int,
                  dropout: float=0., nhead: Optional[int]=None, attn_type: AttentionType=AttentionType.none):
         super(DiscriminatorLayer, self).__init__()
-        self.conv = nn.Conv2d(voxel_size, out_channels, kernel_size=3, stride=2, padding=1)
+        self.conv = nn.Conv2d(voxel_size, emb_dim, kernel_size=3, stride=2, padding=1)
+        self.out_conv = nn.Conv2d(emb_dim, out_channels, kernel_size=3, stride=1, padding=1)
+        self.features_conv = nn.Conv2d(emb_dim, voxel_size, kernel_size=3, stride=1, padding=1)
         self.attn_type = attn_type
         if attn_type != AttentionType.none:
             if attn_type == AttentionType.attention:
@@ -75,8 +77,10 @@ class DiscriminatorLayer(nn.Module):
         x = self.conv(x)
         B, C, H, W = x.shape
         L = H * W
-        flatten = x.permute(0, 2, 1).view(B, L, C)
-        x = self.attn_type(flatten)
-        x = self.fc(x)
+        flatten = x.view(B, C, L).permute(0, 2, 1)
+        x = self.self_attn(flatten)
+        x = self.ffn(x)
         x = x.permute(0, 2, 1).view(B, C, H, W)
-        return x
+        features = self.features_conv(x)
+        x = self.out_conv(x)
+        return x, features

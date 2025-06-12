@@ -31,7 +31,7 @@ class AdaptiveConv2d(nn.Module):
         demodulation = torch.rsqrt(bank_weights.pow(2).sum([2, 3, 4], keepdim=True) + self._eps)
         bank_weights = bank_weights * demodulation
         bank_weights = bank_weights.view(bs * self.out_channels, c_in, self.kernel_size, self.kernel_size)
-        x = x.view(1, bs * c_in, h, w)
+        x = x.reshape(1, bs * c_in, h, w)
         out = torch.conv2d(x, bank_weights, stride=self.stride, padding=self.padding, groups=bs)
         out = out.view(bs, self.out_channels, out.shape[-2], out.shape[-1])
         return out

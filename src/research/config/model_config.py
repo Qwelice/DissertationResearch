@@ -1,6 +1,7 @@
 from easydict import EasyDict
 
 from research.utils.enums import LayerType, ConversionType, WeightsInitType, AttentionType
+from research.utils.initializers.layer_initializers import dropout
 
 # L2Attention params: <'embed_dim': int,
 #                      'num_heads': int,
@@ -244,88 +245,43 @@ model_cfg.discriminator.layers = [
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
-            'input_size': 32,
-            'patch_size': 4
-        },
-        'layers': [
-            {
-                'type': LayerType.Conv2d,
-                'params': {
-                    'in_channels': 32,
-                    'out_channels': 16,
-                    'kernel_size': 3,
-                    'stride': 2,
-                    'padding': 1
-                }
-            }
-        ]
+            'voxel_size': 32,
+            'out_channels': 32,
+            'emb_dim': DESCRIPTOR_DIM
+        }
     },
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
-            'input_size': 16,
-            'patch_size': 2,
-            'dim_size': DESCRIPTOR_DIM,
-            'nhead': 8,
-            'dim_feedforward': 2048,
-            'num_layers': 6,
-            'tiq_qk': True
-        },
-        'layers': [
-            {
-                'type': LayerType.Conv2d,
-                'params': {
-                    'in_channels': 16,
-                    'out_channels': 8,
-                    'kernel_size': 3,
-                    'stride': 2,
-                    'padding': 1
-                }
-            }
-        ]
+            'voxel_size': 16,
+            'out_channels': 64,
+            'emb_dim': DESCRIPTOR_DIM,
+            'dropout': 0.4,
+            'attn_type': AttentionType.l2attention,
+            'nhead': 8
+        }
     },
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
-            'input_size': 8,
-            'patch_size': 2,
-            'dim_size': DESCRIPTOR_DIM,
-            'nhead': 8,
-            'dim_feedforward': 2048,
-            'num_layers': 6,
-            'tiq_qk': True
-        },
-        'layers': [
-            {
-                'type': LayerType.Conv2d,
-                'params': {
-                    'in_channels': 8,
-                    'out_channels': 4,
-                    'kernel_size': 3,
-                    'stride': 2,
-                    'padding': 1
-                }
-            }
-        ]
+            'voxel_size': 8,
+            'out_channels': 128,
+            'emb_dim': DESCRIPTOR_DIM,
+            'dropout': 0.4,
+            'attn_type': AttentionType.l2attention,
+            'nhead': 8
+        }
     },
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
-            'input_size': 4,
-            'patch_size': 2
-        },
-        'layers': [
-            {
-                'type': LayerType.Conv2d,
-                'params': {
-                    'in_channels': 4,
-                    'out_channels': 1,
-                    'kernel_size': 4,
-                    'stride': 1,
-                    'padding': 0
-                }
-            }
-        ]
+            'voxel_size': 4,
+            'out_channels': 256,
+            'emb_dim': DESCRIPTOR_DIM,
+            'dropout': 0.4,
+            'attn_type': AttentionType.l2attention,
+            'nhead': 8
+        }
     }
 ]
 
@@ -333,8 +289,8 @@ model_cfg.discriminator.predictors = [
     {
         'type': LayerType.Predictor,
         'params': {
-            'in_channels': 16,
-            'out_channels': 32,
+            'in_channels': 32,
+            'out_channels': 64,
             'voxel_size': 16,
             'style_dim': STYLE_DIM
         }
@@ -342,8 +298,8 @@ model_cfg.discriminator.predictors = [
     {
         'type': LayerType.Predictor,
         'params': {
-            'in_channels': 8,
-            'out_channels': 16,
+            'in_channels': 64,
+            'out_channels': 128,
             'voxel_size': 8,
             'style_dim': STYLE_DIM
         }
@@ -351,8 +307,8 @@ model_cfg.discriminator.predictors = [
     {
         'type': LayerType.Predictor,
         'params': {
-            'in_channels': 4,
-            'out_channels': 8,
+            'in_channels': 128,
+            'out_channels': 256,
             'voxel_size': 4,
             'style_dim': STYLE_DIM
         }
@@ -360,9 +316,9 @@ model_cfg.discriminator.predictors = [
     {
         'type': LayerType.Predictor,
         'params': {
-            'in_channels': 1,
-            'out_channels': 2,
-            'voxel_size': 1,
+            'in_channels': 256,
+            'out_channels': 512,
+            'voxel_size': 2,
             'style_dim': STYLE_DIM
         }
     }

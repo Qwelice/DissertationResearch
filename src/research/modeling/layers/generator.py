@@ -7,43 +7,67 @@ from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.attention import L2MultiHeadAttention
 from research.modeling.layers.transformer import L2TransformerDecoderLayer
 from research.modeling.models.transformer import L2TransformerDecoder
-from research.utils.functions import split_into_patches, get_2d_sin_cos_pos_embed, merge_patches
+from research.utils.enums import AttentionType
+from research.utils.functions import split_into_patches, get_2d_sin_cos_pos_embed, merge_patches, \
+    get_1d_sin_cos_positional_encoding
+
+
+class UpsamplingLayer(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, style_dim: int,
+                 hidden_channels: Optional[int]=None, bank_size: Optional[int]=4):
+        super(UpsamplingLayer, self).__init__()
+        if hidden_channels is None:
+            hidden_channels = out_channels
+        self.conv_1 = AdaptiveConv2d(in_channels, hidden_channels, style_dim=style_dim,
+                                     kernel_size=3, stride=1, padding=1, bank_size=bank_size)
+        self.conv_2 = AdaptiveConv2d(hidden_channels, out_channels, style_dim=style_dim,
+                                     kernel_size=3, stride=1, padding=1, bank_size=bank_size)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.activation = nn.ReLU()
+
+    def forward(self, x, style):
+        x = self.conv_1(x, style)
+        x = self.upsample(x)
+        x = self.conv_2(x, style)
+        x = self.activation(x)
+        return x
 
 
 class VoxelFormer(nn.Module):
-    def __init__(self, input_size: int, seq_size: int, dim_size: int, nhead: int, dim_feedforward: int,
-                 num_layers: int, activation: Optional[str]=None, tiq_qk: Optional[bool]=None, is_l2: Optional[bool]=None):
+    def __init__(self, voxel_size: int, seq_size: int, emb_dim: int, nhead: int, num_layers: int, dropout: float=0.,
+                 attn_type: AttentionType=AttentionType.none, activation: Optional[str]=None, tiq_qk: Optional[bool]=None):
         super(VoxelFormer, self).__init__()
-        self.input_size = input_size
-        self.seq_size = seq_size
-        self.dim_size = dim_size
-        self.queries = nn.Parameter(torch.randn(1, seq_size, dim_size), requires_grad=True)
-        if activation is None or 'relu':
-            activation = 'relu'
-        else:
-            activation = 'gelu'
+        if attn_type == AttentionType.none:
+            raise ValueError('attention type cannot be none')
 
-        is_l2 = is_l2 if is_l2 is not None else False
-        if is_l2:
-            decoder_layer = L2TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
-                                                 activation=activation, tie_qk=tiq_qk)
-            self.decoder = L2TransformerDecoder(decoder_layer, num_layers=num_layers)
+        self.queries = nn.Parameter(torch.randn(1, seq_size, emb_dim), requires_grad=True)
+        if activation is None:
+            activation = 'relu'
+
+        if attn_type == AttentionType.attention:
+            decoding_layer = nn.TransformerDecoderLayer(d_model=emb_dim, nhead=nhead, dim_feedforward=4 * emb_dim,
+                                                        dropout=dropout, batch_first=True, norm_first=True, activation=activation)
+            self.decoder = nn.TransformerDecoder(decoding_layer, num_layers=num_layers)
         else:
-            decoder_layer = nn.TransformerDecoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
-                                                      activation=activation, batch_first=True)
-            self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
-        self.x = nn.Linear(dim_size, input_size)
-        self.y = nn.Linear(dim_size, input_size)
-        self.z = nn.Linear(dim_size, input_size)
+            decoding_layer = L2TransformerDecoderLayer(d_model=emb_dim, nhead=nhead, dim_feedforward=4 * emb_dim,
+                                                       dropout=dropout, activation=activation, tie_qk=tiq_qk)
+            self.decoder = L2TransformerDecoder(decoding_layer, num_layers=num_layers)
+
+        self.pos = get_1d_sin_cos_positional_encoding(seq_size, emb_dim)
+
+        self.x = nn.Linear(emb_dim, voxel_size)
+        self.y = nn.Linear(emb_dim, voxel_size)
+        self.z = nn.Linear(emb_dim, voxel_size)
 
     def _one_rank_product(self, u, v, w) -> torch.Tensor:
-        P = torch.einsum('bki,bkj,bkm->bijm', u, v, w)
+        P = torch.einsum('bki,bkj,bkl->bijl', u, v, w)
         P = torch.minimum(torch.tensor(1.0), P)
         return P
 
     def forward(self, t):
         b, _, _ = t.size()
         queries = self.queries.expand(b, -1, -1)
+        queries = queries + self.pos.to(t.device)
         t = self.decoder(t, queries)
         x = self.x(t)
         y = self.y(t)
@@ -53,67 +77,71 @@ class VoxelFormer(nn.Module):
 
 
 class GeneratorLayer(nn.Module):
-    """
-    DO NOT FORGET: INPUT SIZE YOU'RE USING FOR FEATURES ON BEFORE UPSAMPLING!
-    """
-    def __init__(self,
-                 input_size: int,
-                 patch_size: int,
-                 adaconv: AdaptiveConv2d,
-                 voxel_former: VoxelFormer,
-                 self_atten: Optional[L2MultiHeadAttention]=None,
-                 cross_atten: Optional[L2MultiHeadAttention]=None,
-                 emb_dim: Optional[int]=None,
-                 size_threshold: int=32):
+    def __init__(self, voxel_size: int, in_channels: int, out_channels: int, hidden_channels: int,
+                 nhead: int, emb_dim: int, style_dim: int, decoding_layers: int, bank_size: int=4,
+                 dropout: float=0., attn_type: AttentionType=AttentionType.none):
         super(GeneratorLayer, self).__init__()
-        self.input_size = 2 * input_size * patch_size * patch_size
-        self.patch_size = patch_size
-        self.emb_dim = emb_dim if self_atten is None else self_atten.embed_dim
+        self.upsampler = UpsamplingLayer(in_channels, hidden_channels, style_dim=style_dim,
+                                         hidden_channels=hidden_channels, bank_size=bank_size)
+        self.out_conv = AdaptiveConv2d(hidden_channels, out_channels, style_dim=style_dim,
+                                       kernel_size=3, stride=1, padding=1, bank_size=bank_size)
+        self.attn_type = attn_type
+        voxel_former_attn_type = attn_type if attn_type != AttentionType.none else AttentionType.attention
+        self.voxel_former = VoxelFormer(voxel_size, voxel_size, emb_dim=emb_dim, nhead=nhead,
+                                        num_layers=decoding_layers, dropout=dropout, attn_type=voxel_former_attn_type)
+        if attn_type != AttentionType.none:
+            if attn_type == AttentionType.attention:
+                self.self_attn = nn.MultiheadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout,
+                                                       batch_first=True)
+                self.cross_attn = nn.MultiheadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout,
+                                                        batch_first=True)
+            else:
+                self.self_attn = L2MultiHeadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout, tie_qk=True)
+                self.cross_attn = L2MultiHeadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout,
+                                                       tie_qk=True)
 
-        assert self.emb_dim is not None, ('if self-attention or cross-attention is None'
-                                          ' embedding dim must be int, but got None')
+            self.norm_1 = nn.LayerNorm(emb_dim)
+            self.norm_2 = nn.LayerNorm(emb_dim)
 
-        self.to_tokens = nn.Linear(self.input_size, self.emb_dim)
-        self.from_tokens = nn.Linear(self.emb_dim, self.input_size)
-        self.adaconv = adaconv
-        self.voxel_former = voxel_former
-        self.self_atten = self_atten
-        self.cross_atten = cross_atten
-        self.threshold = size_threshold
+        self.norm_3 = nn.LayerNorm(emb_dim)
+        self.fc = nn.Sequential(
+            nn.Linear(emb_dim, 4 * emb_dim),
+            nn.GELU(),
+            nn.Linear(4 * emb_dim, emb_dim)
+        )
 
-    def _self_attention(self, x):
-        if self.self_atten is None:
-            return x
-        out, _ = self.self_atten(x, x, x)
-        return out
+    def self_attention(self, x):
+        if self.attn_type != AttentionType.none:
+            x2 = self.norm_1(x)
+            x2, _ = self.self_attn(x2, x2, x2)
+            x = x + x2
+        return x
 
-    def _cross_attention(self, x, t_local):
-        if self.cross_atten is None:
-            return x
-        out, _ = self.cross_atten(x, t_local, t_local)
-        return out
+    def cross_attention(self, x, t_local):
+        if self.attn_type != AttentionType.none:
+            x2 = self.norm_2(x)
+            x2, _ = self.cross_attn(x2, t_local, t_local)
+            x = x2 + x
+        return x
 
-    def _attention(self, x, style, t_local):
-        B, _, H, W = x.shape
-        pos = get_2d_sin_cos_pos_embed(H // self.patch_size,
-                                       W // self.patch_size,
-                                       self.emb_dim).unsqueeze(0).expand(B, -1, -1).to(x.device)
-        x = split_into_patches(x, self.patch_size)
-        x = self.to_tokens(x)
-        x = x + pos
-        if style.ndim == 2:
-            style = style.unsqueeze(1)
-        styled = torch.cat([x, style], dim=1)
-        x = self._self_attention(styled)
-        x = x[::, :-1, ::]  # drop style
-        x = self._cross_attention(x, t_local)
+    def ffn(self, x):
+        x2 = self.norm_3(x)
+        x2 = self.fc(x2)
+        x = x + x2
         return x
 
     def forward(self, x, style, t_local):
-        x = nn.functional.interpolate(x, scale_factor=2, mode='bicubic')
-        x = self.adaconv(x, style)
-        x = self._attention(x, style, t_local)
-        voxel = self.voxel_former(x)
-        x = self.from_tokens(x)
-        features = merge_patches(x, self.patch_size)
-        return voxel, features
+        x = self.upsampler(x, style)
+        B, C, H, W = x.shape
+        L = H * W
+        flatten = x.view(B, C, L).permute(0, 2, 1) # B, L, C
+
+        x = self.self_attention(flatten)
+        x = self.cross_attention(x, t_local)
+        x = self.ffn(x)
+
+        features = x.permute(0, 2, 1).view(B, C, H, W)
+        features = self.out_conv(features)
+        out = self.voxel_former(x)
+
+        return out, features

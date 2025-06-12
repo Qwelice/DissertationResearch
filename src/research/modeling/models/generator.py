@@ -33,36 +33,13 @@ class Generator(nn.Module):
         for layer in cfg.layers:
             tp: LayerType = layer['type']
             init_fn = LayerInitMap[tp]
-            params: Dict = {
-                **layer['params'],
-                **self._get_layer_params(layer)
-            }
+            params = layer['params']
             module =  init_fn(**params)
             if module is None:
                 raise ValueError('module cannot be None')
             else:
                 layers.append(module)
         return nn.ModuleList(layers)
-
-    def _get_layer_params(self, layer_config: Dict) -> nn.Module:
-        parameters = {}
-        layers = layer_config['layers']
-        for layer in layers:
-            tp = layer['type']
-            params = layer['params']
-            init_fn = LayerInitMap[tp]
-            module = init_fn(**params)
-            if tp == LayerType.AdaConv2d:
-                parameters['adaconv'] = module
-            elif tp == LayerType.VoxelFormer:
-                parameters['voxel_former'] = module
-            elif tp == LayerType.SelfL2Attention or tp == LayerType.SelfAttention:
-                parameters['self_atten'] = module
-            elif tp == LayerType.CrossL2Attention or tp == LayerType.CrossAttention:
-                parameters['cross_atten'] = module
-            else:
-                raise ValueError(f'unknown parameter: {tp}')
-        return parameters
 
     def get_style(self, t_global):
         style = self.mapping_net(t_global)

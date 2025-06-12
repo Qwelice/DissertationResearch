@@ -13,13 +13,14 @@ def _qk_l2_distance(queries: torch.Tensor, keys: torch.Tensor):
 
 
 class L2MultiHeadAttention(nn.Module):
-    def __init__(self, embed_dim: int, num_heads: int,
+    def __init__(self, embed_dim: int, num_heads: int, dropout: float=0.,
                  kdim: Optional[int]=None, vdim: Optional[int]=None, tie_qk: bool=True):
         super(L2MultiHeadAttention, self).__init__()
         self.embed_dim = embed_dim
         self.kdim = kdim if kdim is not None else embed_dim
         self.vdim = vdim if vdim is not None else embed_dim
         self.num_heads = num_heads
+        self.dropout = nn.Dropout(dropout)
 
         self.tie_qk = tie_qk
         if tie_qk:
@@ -55,6 +56,7 @@ class L2MultiHeadAttention(nn.Module):
             attn_dist = attn_dist.masked_fill(attn_mask, float('inf'))
 
         attn_weights = torch.softmax(-attn_dist * self._scale, dim=-1)
+        attn_weights = self.dropout(attn_weights)
         attention = attn_weights @ v
         attention = attention.transpose(1, 2).flatten(-2)
         attn_out = self.out_proj(attention)

@@ -4,7 +4,7 @@ from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.adapter import AdapterLayer
 from research.modeling.layers.attention import L2MultiHeadAttention
 from research.modeling.layers.discriminator import DiscriminatorLayer, Predictor
-from research.modeling.layers.generator import GeneratorLayer, VoxelFormer
+from research.modeling.layers.generator import GeneratorLayer
 from research.modeling.layers.transformer import L2TransformerEncoderLayer, L2TransformerDecoderLayer
 from research.modeling.models.common import get_resnet
 from research.modeling.models.transformer import L2TransformerEncoder, L2TransformerDecoder
@@ -65,9 +65,6 @@ def generator_layer(**params) -> nn.Module:
 
 def discriminator_layer(**params) -> nn.Module:
     return DiscriminatorLayer(**params)
-
-def voxel_former(**params) -> nn.Module:
-    return VoxelFormer(**params)
 
 def predictor(**params) -> nn.Module:
     return Predictor(**params)

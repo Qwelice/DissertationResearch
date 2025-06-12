@@ -1,6 +1,6 @@
 from easydict import EasyDict
 
-from research.utils.enums import LayerType, ConversionType, WeightsInitType
+from research.utils.enums import LayerType, ConversionType, WeightsInitType, AttentionType
 
 # L2Attention params: <'embed_dim': int,
 #                      'num_heads': int,
@@ -113,7 +113,7 @@ model_cfg.image_encoder.layers = [
     {
         'type': LayerType.L2Encoder,
         'params': {
-            'num_layers': 4
+            'num_layers': 6
         },
         'layers': [
             {
@@ -178,216 +178,46 @@ model_cfg.generator.layers = [
     {
         'type': LayerType.GeneratorLayer,
         'params': {
-            'input_size': 2,
-            'patch_size': 1,
-            'emb_dim': DESCRIPTOR_DIM
-        },
-        'layers': [
-            {
-                'type': LayerType.AdaConv2d,
-                'params': {
-                    'in_channels': 2,
-                    'out_channels': 4,
-                    'style_dim': STYLE_DIM,
-                    'kernel_size': 3,
-                    'stride': 1,
-                    'padding': 1,
-                    'bank_size': 4
-                },
-                'validate': {
-                    'input': (2, 4, 4),
-                    'output': (4, 4, 4)
-                }
-            },
-            {
-                'type': LayerType.VoxelFormer,
-                'params': {
-                    'input_size': 4,
-                    'seq_size': 16,
-                    'dim_size': DESCRIPTOR_DIM,
-                    'nhead': 8,
-                    'dim_feedforward': 2048,
-                    'num_layers': 6,
-                    'tiq_qk': True
-                }
-            }
-        ],
-        'validate': {
-            'input': (2, 2, 2),
-            'output': (4, 4, 4)
+            'voxel_size': 8,
+            'in_channels': 512,
+            'hidden_channels': 512,
+            'out_channels': 256,
+            'nhead': 6,
+            'emb_dim': DESCRIPTOR_DIM,
+            'style_dim': STYLE_DIM,
+            'decoding_layers': 6,
+            'attn_type': AttentionType.attention,
+            'dropout': 0.4
         }
     },
     {
         'type': LayerType.GeneratorLayer,
         'params': {
-            'input_size': 4,
-            'patch_size': 2
-        },
-        'layers': [
-            {
-                'type': LayerType.AdaConv2d,
-                'params': {
-                    'in_channels': 4,
-                    'out_channels': 8,
-                    'style_dim': STYLE_DIM,
-                    'kernel_size': 3,
-                    'stride': 1,
-                    'padding': 1,
-                    'bank_size': 4
-                },
-                'validate': {
-                    'input': (4, 8, 8),
-                    'output': (8, 8, 8)
-                }
-            },
-            {
-                'type': LayerType.SelfAttention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    # 'tie_qk': True
-                    'batch_first': True
-                }
-            },
-            {
-                'type': LayerType.CrossAttention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    # 'tie_qk': True
-                    'batch_first': True
-                }
-            },
-            {
-                'type': LayerType.VoxelFormer,
-                'params': {
-                    'input_size': 8,
-                    'seq_size': 16,
-                    'dim_size': DESCRIPTOR_DIM,
-                    'nhead': 8,
-                    'dim_feedforward': 2048,
-                    'num_layers': 6,
-                    'tiq_qk': True
-                }
-            }
-        ]
-    },
-    {
-        'type': LayerType.GeneratorLayer,
-        'params': {
-            'input_size': 8,
-            'patch_size': 2
-        },
-        'layers': [
-            {
-                'type': LayerType.AdaConv2d,
-                'params': {
-                    'in_channels': 8,
-                    'out_channels': 16,
-                    'style_dim': STYLE_DIM,
-                    'kernel_size': 3,
-                    'stride': 1,
-                    'padding': 1,
-                    'bank_size': 4
-                },
-                'validate': {
-                    'input': (8, 16, 16),
-                    'output': (16, 16, 16)
-                }
-            },
-            {
-                'type': LayerType.SelfAttention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    # 'tie_qk': True
-                    'batch_first': True
-                }
-            },
-            {
-                'type': LayerType.CrossAttention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    # 'tie_qk': True
-                    'batch_first': True
-                }
-            },
-            {
-                'type': LayerType.VoxelFormer,
-                'params': {
-                    'input_size': 16,
-                    'seq_size': 64,
-                    'dim_size': DESCRIPTOR_DIM,
-                    'nhead': 8,
-                    'dim_feedforward': 2048,
-                    'num_layers': 6,
-                    'tiq_qk': True
-                }
-            }
-        ],
-        'validate': {
-            'input': (8, 8, 8),
-            'output': (16, 16, 16)
+            'voxel_size': 16,
+            'in_channels': 256,
+            'hidden_channels': 256,
+            'out_channels': 128,
+            'nhead': 6,
+            'emb_dim': DESCRIPTOR_DIM,
+            'style_dim': STYLE_DIM,
+            'decoding_layers': 6,
+            'attn_type': AttentionType.attention,
+            'dropout': 0.4
         }
     },
     {
         'type': LayerType.GeneratorLayer,
         'params': {
-            'input_size': 16,
-            'patch_size': 4
-        },
-        'layers': [
-            {
-                'type': LayerType.AdaConv2d,
-                'params': {
-                    'in_channels': 16,
-                    'out_channels': 32,
-                    'style_dim': STYLE_DIM,
-                    'kernel_size': 3,
-                    'stride': 1,
-                    'padding': 1,
-                    'bank_size': 4
-                },
-                'validate': {
-                    'input': (16, 32, 32),
-                    'output': (32, 32, 32)
-                }
-            },
-            {
-                'type': LayerType.SelfAttention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    # 'tie_qk': True
-                    'batch_first': True
-                }
-            },
-            {
-                'type': LayerType.CrossAttention,
-                'params': {
-                    'embed_dim': DESCRIPTOR_DIM,
-                    'num_heads': 8,
-                    # 'tie_qk': True
-                    'batch_first': True
-                }
-            },
-            {
-                'type': LayerType.VoxelFormer,
-                'params': {
-                    'input_size': 32,
-                    'seq_size': 64,
-                    'dim_size': DESCRIPTOR_DIM,
-                    'nhead': 8,
-                    'dim_feedforward': 2048,
-                    'num_layers': 6,
-                    'tiq_qk': True
-                }
-            }
-        ],
-        'validate': {
-            'input': (16, 16, 16),
-            'output': (32, 32, 32)
+            'voxel_size': 32,
+            'in_channels': 128,
+            'hidden_channels': 64,
+            'out_channels': 32,
+            'nhead': 6,
+            'emb_dim': DESCRIPTOR_DIM,
+            'style_dim': STYLE_DIM,
+            'decoding_layers': 6,
+            'attn_type': AttentionType.attention,
+            'dropout': 0.4
         }
     }
 ]

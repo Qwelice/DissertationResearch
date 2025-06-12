@@ -19,7 +19,6 @@ LayerInitMap = {
     LayerType.Leaky: leaky,
     LayerType.GeneratorLayer: generator_layer,
     LayerType.DiscriminatorLayer: discriminator_layer,
-    LayerType.VoxelFormer: voxel_former,
     LayerType.Predictor: predictor,
     LayerType.SelfL2Attention: l2attention,
     LayerType.CrossL2Attention: l2attention,

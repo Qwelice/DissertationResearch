@@ -60,10 +60,10 @@ class Discriminator(nn.Module):
         N = len(self.layers)
         for i in range(N):
             preds = []
-            phi = x[i]
+            phi = [None, x[i]]
             for j in range(i, N):
-                phi = self.layers[j](phi)
-                psi = self.predictors[j](phi, t_global)
+                phi = self.layers[j](phi[1]) # phi is composed of [features, voxel]
+                psi = self.predictors[j](phi[0], t_global)
                 preds.append(psi)
             outs.append(preds)
         return outs

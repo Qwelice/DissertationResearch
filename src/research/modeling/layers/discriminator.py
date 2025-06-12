@@ -5,9 +5,7 @@ from torch import nn
 
 from research.modeling.layers.adaconv import AdaptiveConv2d
 from research.modeling.layers.attention import L2MultiHeadAttention
-from research.modeling.layers.transformer import L2TransformerEncoderLayer
-from research.modeling.models.transformer import L2TransformerEncoder
-from research.utils.functions import split_into_patches, merge_patches, get_2d_sin_cos_pos_embed
+from research.utils.enums import AttentionType
 
 
 class Predictor(nn.Module):
@@ -23,7 +21,6 @@ class Predictor(nn.Module):
         self.conv_4 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
         self.unconditional = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
         self.fc = nn.Linear(out_channels * voxel_size**2, 1)
-        self.sigma = nn.Sigmoid()
         self.leaky = nn.LeakyReLU(0.2)
 
     def forward(self, x, style):
@@ -39,48 +36,47 @@ class Predictor(nn.Module):
 
 
 class DiscriminatorLayer(nn.Module):
-    """
-    DO NOT FORGET: [PATCH SIZE YOU'RE USING AFTER DOWNSAMPLING!
-                    INPUT SIZE YOU'RE USING BEFORE DOWNSAMPLING]
-    """
-    def __init__(self, input_size: int, patch_size: int, conv: nn.Conv2d,
-                 dim_size: Optional[int]=None, nhead: Optional[int]=None,
-                 dim_feedforward: Optional[int]=None, num_layers: Optional[int]=None,
-                 activation: Optional[str]=None, tiq_qk: Optional[bool]=None,):
+    def __init__(self, voxel_size: int, out_channels: int, emb_dim: int,
+                 dropout: float=0., nhead: Optional[int]=None, attn_type: AttentionType=AttentionType.none):
         super(DiscriminatorLayer, self).__init__()
-        self.input_size = input_size // 2 * patch_size * patch_size
-        self.patch_size = patch_size
-        self.conv = conv
-        self.emb_dim = dim_size
-        self.to_tokens = nn.Linear(self.input_size, self.emb_dim) if dim_size else None
-        self.from_tokens = nn.Linear(self.emb_dim, self.input_size) if dim_size else None
-        encoder_layer = L2TransformerEncoderLayer(d_model=dim_size, nhead=nhead, dim_feedforward=dim_feedforward,
-                                                  activation=activation, tiq_qk=tiq_qk) if dim_size else None
-        self.encoder = L2TransformerEncoder(encoder_layer, num_layers=num_layers) if encoder_layer else None
+        self.conv = nn.Conv2d(voxel_size, out_channels, kernel_size=3, stride=2, padding=1)
+        self.attn_type = attn_type
+        if attn_type != AttentionType.none:
+            if attn_type == AttentionType.attention:
+                self.attn = nn.MultiheadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout, batch_first=True)
+            elif attn_type == AttentionType.l2attention:
+                self.attn = L2MultiHeadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout, tie_qk=True)
+            self.norm_1 = nn.LayerNorm(emb_dim)
 
-        if activation is None:
-            activation = 'relu'
-        if activation.lower() == 'relu':
-            self.activation = nn.ReLU()
-        else:
-            self.activation = nn.GELU()
+        self.norm_2 = nn.LayerNorm(emb_dim)
+        self.fc = nn.Sequential(
+            nn.Linear(emb_dim, 4 * emb_dim),
+            nn.GELU(),
+            nn.Linear(4 * emb_dim, emb_dim)
+        )
 
-    def _self_attn(self, x):
-        if self.encoder is None:
-            return x
-        B, _, H, W = x.shape
-        pos = get_2d_sin_cos_pos_embed(H // self.patch_size, W // self.patch_size, self.emb_dim).to(x.device)
-        x = split_into_patches(x, patch_size=self.patch_size)
-        x = self.to_tokens(x)
-        x = x + pos
-        x = self.encoder(x)
-        x = self.from_tokens(x)
-        x = merge_patches(x, self.patch_size)
+
+    def self_attn(self, x):
+        if self.attn_type != AttentionType.none:
+            x2 = self.norm_1(x)
+            x2, _ = self.attn(x2, x2, x2)
+            x = x + x2
+        return x
+
+    def ffn(self, x):
+        x2 = self.norm_2(x)
+        x2 = self.fc(x2)
+        x = x + x2
         return x
 
     def forward(self, x):
         if x.ndim == 5:
             x = x.squeeze(1)
-        x = self.activation(self.conv(x))
-        x = self._self_attn(x)
+        x = self.conv(x)
+        B, C, H, W = x.shape
+        L = H * W
+        flatten = x.permute(0, 2, 1).view(B, L, C)
+        x = self.attn_type(flatten)
+        x = self.fc(x)
+        x = x.permute(0, 2, 1).view(B, C, H, W)
         return x

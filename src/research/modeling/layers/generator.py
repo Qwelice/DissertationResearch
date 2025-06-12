@@ -77,7 +77,7 @@ class VoxelFormer(nn.Module):
 
 class GeneratorLayer(nn.Module):
     def __init__(self, voxel_size: int, in_channels: int, out_channels: int, hidden_channels: int,
-                 nhead: int, emb_dim: int, style_dim: int, decoding_layers: int, bank_size: int=4,
+                 emb_dim: int, style_dim: int, decoding_layers: int, nhead: Optional[int]=None,  bank_size: int=4,
                  dropout: float=0., attn_type: AttentionType=AttentionType.none,
                  need_patching: bool=False, patch_size: Optional[int]=None):
         super(GeneratorLayer, self).__init__()
@@ -100,6 +100,8 @@ class GeneratorLayer(nn.Module):
         self.voxel_former = VoxelFormer(voxel_size, voxel_size, emb_dim=emb_dim, nhead=nhead,
                                         num_layers=decoding_layers, dropout=dropout, attn_type=voxel_former_attn_type)
         if attn_type != AttentionType.none:
+            if nhead is None:
+                raise ValueError('heads number cannot be None')
             if attn_type == AttentionType.attention:
                 self.self_attn = nn.MultiheadAttention(embed_dim=emb_dim, num_heads=nhead, dropout=dropout,
                                                        batch_first=True)

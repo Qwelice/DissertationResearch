@@ -62,8 +62,8 @@ from research.utils.enums import LayerType, ConversionType, WeightsInitType, Att
 #                    'voxel_size': int,
 #                    'style_dim': int>
 
-STYLE_DIM = 256
-DESCRIPTOR_DIM = STYLE_DIM
+STYLE_DIM = 512
+DESCRIPTOR_DIM = 512
 LATENT_DIM = 128
 
 model_cfg = EasyDict()
@@ -172,20 +172,35 @@ model_cfg.generator = EasyDict()
 model_cfg.generator.base_features = {
     'weights_init': WeightsInitType.xavier_normal,
     'weights_init_params': {},
-    'shape': (2, 2, 2)
+    'shape': (512, 2, 2)
 }
 model_cfg.generator.layers = [
     {
         'type': LayerType.GeneratorLayer,
         'params': {
-            'voxel_size': 8,
+            'voxel_size': 4,
             'in_channels': 512,
-            'hidden_channels': 512,
+            'hidden_channels': DESCRIPTOR_DIM,
             'out_channels': 256,
-            'nhead': 6,
+            'nhead': 8,
             'emb_dim': DESCRIPTOR_DIM,
             'style_dim': STYLE_DIM,
-            'decoding_layers': 6,
+            'decoding_layers': 4,
+            'attn_type': AttentionType.none,
+            'dropout': 0.4
+        }
+    },
+    {
+        'type': LayerType.GeneratorLayer,
+        'params': {
+            'voxel_size': 8,
+            'in_channels': 256,
+            'hidden_channels': DESCRIPTOR_DIM,
+            'out_channels': 128,
+            'nhead': 8,
+            'emb_dim': DESCRIPTOR_DIM,
+            'style_dim': STYLE_DIM,
+            'decoding_layers': 4,
             'attn_type': AttentionType.attention,
             'dropout': 0.4
         }
@@ -194,13 +209,13 @@ model_cfg.generator.layers = [
         'type': LayerType.GeneratorLayer,
         'params': {
             'voxel_size': 16,
-            'in_channels': 256,
-            'hidden_channels': 256,
-            'out_channels': 128,
-            'nhead': 6,
+            'in_channels': 128,
+            'hidden_channels': DESCRIPTOR_DIM,
+            'out_channels': 64,
+            'nhead': 8,
             'emb_dim': DESCRIPTOR_DIM,
             'style_dim': STYLE_DIM,
-            'decoding_layers': 6,
+            'decoding_layers': 4,
             'attn_type': AttentionType.attention,
             'dropout': 0.4
         }
@@ -209,15 +224,17 @@ model_cfg.generator.layers = [
         'type': LayerType.GeneratorLayer,
         'params': {
             'voxel_size': 32,
-            'in_channels': 128,
-            'hidden_channels': 64,
+            'in_channels': 64,
+            'hidden_channels': DESCRIPTOR_DIM,
             'out_channels': 32,
-            'nhead': 6,
+            'nhead': 8,
             'emb_dim': DESCRIPTOR_DIM,
             'style_dim': STYLE_DIM,
-            'decoding_layers': 6,
-            'attn_type': AttentionType.attention,
-            'dropout': 0.4
+            'decoding_layers': 4,
+            'attn_type': AttentionType.none,
+            'dropout': 0.4,
+            'need_patching': True,
+            'patch_size': 8
         }
     }
 ]

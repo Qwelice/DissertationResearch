@@ -79,8 +79,19 @@ class VoxelFormer(nn.Module):
 class GeneratorLayer(nn.Module):
     def __init__(self, voxel_size: int, in_channels: int, out_channels: int, hidden_channels: int,
                  nhead: int, emb_dim: int, style_dim: int, decoding_layers: int, bank_size: int=4,
-                 dropout: float=0., attn_type: AttentionType=AttentionType.none):
+                 dropout: float=0., attn_type: AttentionType=AttentionType.none,
+                 need_patching: bool=False, patch_size: Optional[int]=None):
         super(GeneratorLayer, self).__init__()
+        self.need_patching = need_patching
+        if need_patching:
+            if patch_size is None:
+                raise ValueError('patch size must be int if needing patching')
+            self.threshold_factor = patch_size
+            self.patchify = nn.Conv2d(hidden_channels, emb_dim,
+                                      kernel_size=self.threshold_factor, stride=self.threshold_factor)
+            self.unpatchify = nn.ConvTranspose2d(emb_dim, hidden_channels,
+                                                 kernel_size=self.threshold_factor, stride=self.threshold_factor)
+
         self.upsampler = UpsamplingLayer(in_channels, hidden_channels, style_dim=style_dim,
                                          hidden_channels=hidden_channels, bank_size=bank_size)
         self.out_conv = AdaptiveConv2d(hidden_channels, out_channels, style_dim=style_dim,
@@ -132,6 +143,8 @@ class GeneratorLayer(nn.Module):
 
     def forward(self, x, style, t_local):
         x = self.upsampler(x, style)
+        if self.need_patching:
+            x = self.patchify(x)
         B, C, H, W = x.shape
         L = H * W
         flatten = x.view(B, C, L).permute(0, 2, 1) # B, L, C
@@ -141,7 +154,9 @@ class GeneratorLayer(nn.Module):
         x = self.ffn(x)
 
         features = x.permute(0, 2, 1).view(B, C, H, W)
-        features = self.out_conv(features)
+        if self.need_patching:
+            features = self.unpatchify(features)
+        features = self.out_conv(features, style)
         out = self.voxel_former(x)
 
         return out, features

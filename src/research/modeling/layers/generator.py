@@ -8,8 +8,7 @@ from research.modeling.layers.attention import L2MultiHeadAttention
 from research.modeling.layers.transformer import L2TransformerDecoderLayer
 from research.modeling.models.transformer import L2TransformerDecoder
 from research.utils.enums import AttentionType
-from research.utils.functions import split_into_patches, get_2d_sin_cos_pos_embed, merge_patches, \
-    get_1d_sin_cos_positional_encoding
+from research.utils.functions import get_1d_sin_cos_positional_encoding
 
 
 class UpsamplingLayer(nn.Module):

@@ -1,12 +1,81 @@
 from typing import Union, Optional, List
 
+import numpy as np
 import torch
+import open3d as o3d
+from open3d.cpu.pybind.camera import PinholeCameraParameters
+from open3d.cpu.pybind.visualization import RenderOption, ViewControl
 from pytorch3d.ops import cubify
 from pytorch3d.renderer import look_at_view_transform, RasterizationSettings, FoVPerspectiveCameras, PointLights, \
     MeshRasterizer, SoftPhongShader, MeshRenderer, TexturesVertex
 from pytorch3d.structures import Meshes
 
 from research.utils.structures.generic_mesh import GenericMesh, MeshColor
+
+
+class Renderizer:
+    def __init__(self, img_size: int):
+        self.img_size = img_size
+        self.visualizer = o3d.visualization.Visualizer()
+        self.visualizer.create_window(visible=False, width=self.img_size, height=self.img_size)
+        self.opt: RenderOption = self.visualizer.get_render_option()
+        self.opt.background_color = np.array([0.87, 0.85, 0.88])
+        self.opt.light_on = True
+        self.ctr: ViewControl = self.visualizer.get_view_control()
+        self._angles: Optional[Union[tuple, List]] = None
+        self._translation: Optional[Union[tuple, List]] = None
+
+    def _render_mesh(self, mesh: GenericMesh) -> torch.Tensor:
+        self.visualizer.clear_geometries()
+        mesh = mesh.as_open3d()
+        # noinspection PyTypeChecker
+        self.visualizer.add_geometry(mesh)
+
+        self._apply_camera_motion()
+
+        self.visualizer.poll_events()
+        self.visualizer.update_renderer()
+
+        img = self.visualizer.capture_screen_float_buffer(do_render=True)
+        img = (torch.tensor(np.asarray(img), dtype=torch.float32) * 255).to(dtype=torch.uint8)
+        return img
+
+    def _apply_camera_motion(self):
+        parameters: PinholeCameraParameters = self.ctr.convert_to_pinhole_camera_parameters()
+        new_extrinsic = parameters.extrinsic.copy()
+        if self._angles is not None:
+            rotation = o3d.geometry.get_rotation_matrix_from_xyz(self._angles)
+            new_extrinsic[:3, :3] = new_extrinsic[:3, :3] @ rotation
+            if self._translation is not None:
+                translation = np.array(self._translation, dtype=np.float32)
+                new_extrinsic[:3, 3] = new_extrinsic[:3, 3] + rotation @ translation
+        elif self._translation is not None:
+            translation = np.array(self._translation, dtype=np.float32)
+            new_extrinsic[:3, 3] = new_extrinsic[:3, 3] + translation
+
+        parameters.extrinsic = new_extrinsic
+        self.ctr.convert_from_pinhole_camera_parameters(parameters)
+
+    def setup_camera_motion(self,
+                            angles: Optional[Union[tuple, List]]=None,
+                            translation: Optional[Union[tuple, List]]=None,
+                            radians: bool=False):
+        if angles is not None:
+            if len(angles) != 3:
+                raise ValueError('length of angles must be 3')
+            if not radians:
+                angles = torch.tensor(angles, dtype=torch.float32)
+                angles = torch.deg2rad(angles)
+                angles = angles.cpu().tolist()
+        self._angles = angles
+        self._translation = translation
+
+    def __call__(self, mesh: GenericMesh) -> torch.Tensor:
+        return self._render_mesh(mesh)
+
+    def __del__(self):
+        self.visualizer.destroy_window()
+
 
 class VoxelRenderer:
     def __init__(self, img_size: int=256, device: Optional[Union[str, torch.device]]=None):
@@ -43,6 +112,72 @@ class VoxelRenderer:
         shader = SoftPhongShader(device=self.device, cameras=self._cameras, lights=self._lights)
         self._renderer = MeshRenderer(rasterizer=rasterizer, shader=shader)
 
+    def _make_voxel_cube(self, x, y, z, size=1.0, device='cpu'):
+        verts = torch.tensor([
+            [0, 0, 0],
+            [1, 0, 0],
+            [1, 1, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1],
+            [0, 1, 1],
+        ], dtype=torch.float32, device=device) * size + torch.tensor([x, y, z], device=device)
+
+        faces = torch.tensor([
+            [0, 1, 2], [0, 2, 3],
+            [4, 5, 6], [4, 6, 7],
+            [0, 1, 5], [0, 5, 4],
+            [2, 3, 7], [2, 7, 6],
+            [1, 2, 6], [1, 6, 5],
+            [0, 3, 7], [0, 7, 4],
+        ], dtype=torch.int64, device=device)
+
+        return verts, faces
+
+    def _build_voxel_mesh(self, voxel_tensor, color=None, voxel_size=1.0, device='cpu'):
+        if color is None:
+            color = [0.6, 0.8, 0.9]  # default bluish
+        color = torch.tensor(color, device=device).float()
+
+        voxel_tensor = (voxel_tensor > 0.5).float()
+        if voxel_tensor.ndim == 5:  # [B, 1, D, H, W]
+            voxel_tensor = voxel_tensor.squeeze(1)
+        elif voxel_tensor.ndim != 4:  # must be [B, D, H, W]
+            raise ValueError(f"Expected voxel tensor of shape [B, D, H, W], got {voxel_tensor.shape}")
+
+        batch_meshes = []
+        for vox in voxel_tensor:
+            indices = (vox > 0.5).nonzero(as_tuple=False)  # [N, 3], each row is (z, y, x)
+            verts_all = []
+            faces_all = []
+            colors_all = []
+            count = 0
+
+            for idx in indices:
+                x, y, z = idx.tolist()
+                verts, faces = self._make_voxel_cube(x, y, z, size=voxel_size, device=device)
+                verts_all.append(verts)
+                faces_all.append(faces + count * 8)
+                colors_all.append(color.expand(verts.shape[0], -1))
+                count += 1
+
+            if len(verts_all) == 0:
+                empty = GenericMesh(torch.zeros((0, 3), device=device),
+                                    torch.zeros((0, 3), device=device))
+                batch_meshes.append(empty)
+                continue
+
+            verts_all = torch.cat(verts_all, dim=0)
+            faces_all = torch.cat(faces_all, dim=0)
+            colors_all = torch.cat(colors_all, dim=0)
+
+            mesh = Meshes(verts=[verts_all], faces=[faces_all], textures=TexturesVertex([colors_all]))
+            generic_mesh = GenericMesh.create_from_mesh(mesh, device)
+            batch_meshes.append(generic_mesh)
+
+        return batch_meshes
+
     def render_voxel(self,
                      voxel: torch.Tensor,
                      color: Optional[MeshColor]=None):
@@ -51,12 +186,11 @@ class VoxelRenderer:
             voxel = voxel.squeeze(1)
         if color is None:
             color = MeshColor.GREEN
-        mesh = cubify(voxel, thresh=0.1, device=self.device)
+        mesh = self._build_voxel_mesh(voxel, device=self.device)
         verts = []
         faces = []
         verts_features = []
         for m in mesh:
-            m = GenericMesh.create_from_mesh(m, device=self.device)
             if m.verts.size(0) == 0:
                 continue
             m.to_center()

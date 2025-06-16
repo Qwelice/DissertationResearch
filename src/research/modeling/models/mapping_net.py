@@ -11,6 +11,7 @@ class MappingNet(nn.Module):
         self.config = config
         self.layers = self._init_layers_()
         self.latent_dim = config.latent_dim
+        self.norm = nn.LayerNorm(self.latent_dim + config.descriptor_dim)
 
     def _init_layers_(self):
         cfg = self.config.mapping_net
@@ -33,5 +34,6 @@ class MappingNet(nn.Module):
         bs, _ = x.shape
         latent = torch.randn(bs, self.latent_dim, device=device)
         x = torch.cat([x, latent], dim=1)
+        x = self.norm(x)
         x = self.layers(x)
         return x

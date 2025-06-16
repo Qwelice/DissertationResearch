@@ -19,15 +19,33 @@ class UpsamplingLayer(nn.Module):
             hidden_channels = out_channels
         self.conv_1 = AdaptiveConv2d(in_channels, hidden_channels, style_dim=style_dim,
                                      kernel_size=3, stride=1, padding=1, bank_size=bank_size)
-        self.conv_2 = AdaptiveConv2d(hidden_channels, out_channels, style_dim=style_dim,
+        self.conv_2 = AdaptiveConv2d(hidden_channels, hidden_channels, style_dim=style_dim,
                                      kernel_size=3, stride=1, padding=1, bank_size=bank_size)
+        self.conv_3 = AdaptiveConv2d(hidden_channels, out_channels, style_dim=style_dim,
+                                     kernel_size=3, stride=1, padding=1, bank_size=bank_size)
+        self.alpha_1 = nn.Parameter((torch.randn(1, hidden_channels, 1, 1) + 1) / 2, requires_grad=True)
+        self.alpha_2 = nn.Parameter((torch.randn(1, hidden_channels, 1, 1) + 1) / 2, requires_grad=True)
+        self.alpha_3 = nn.Parameter((torch.randn(1, hidden_channels, 1, 1) + 1) / 2, requires_grad=True)
+
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
-        self.activation = nn.ReLU()
+        self.activation = nn.LeakyReLU(0.2)
+
+    def noise(self, x, alpha):
+        noise = torch.randn((x.size(0), 1, x.size(2), x.size(3))).to(x.device)
+        return alpha * noise
 
     def forward(self, x, style):
         x = self.conv_1(x, style)
+        x = x + self.noise(x, self.alpha_1)
+        x = self.activation(x)
+
         x = self.upsample(x)
         x = self.conv_2(x, style)
+        x = x + self.noise(x, self.alpha_2)
+        x = self.activation(x)
+
+        x = self.conv_3(x, style)
+        x = x + self.noise(x, self.alpha_3)
         x = self.activation(x)
         return x
 
@@ -60,17 +78,17 @@ class VoxelFormer(nn.Module):
 
     def _one_rank_product(self, u, v, w) -> torch.Tensor:
         P = torch.einsum('bki,bkj,bkl->bijl', u, v, w)
-        P = torch.minimum(torch.tensor(1.0), P)
+        P = torch.clamp(P, 0, 1)
         return P
 
     def forward(self, t):
         b, _, _ = t.size()
-        queries = self.queries.expand(b, -1, -1)
+        queries = self.queries.repeat(b, 1, 1)
         queries = queries + self.pos.to(t.device)
         t = self.decoder(t, queries)
-        x = self.x(t)
-        y = self.y(t)
-        z = self.z(t)
+        x = torch.sigmoid(self.x(t))
+        y = torch.sigmoid(self.y(t))
+        z = torch.sigmoid(self.z(t))
         voxel = self._one_rank_product(x, y, z)
         return voxel
 
@@ -86,15 +104,21 @@ class GeneratorLayer(nn.Module):
             if patch_size is None:
                 raise ValueError('patch size must be int if needing patching')
             self.threshold_factor = patch_size
-            self.patchify = nn.Conv2d(hidden_channels, emb_dim,
-                                      kernel_size=self.threshold_factor, stride=self.threshold_factor)
-            self.unpatchify = nn.ConvTranspose2d(emb_dim, hidden_channels,
-                                                 kernel_size=self.threshold_factor, stride=self.threshold_factor)
+            self.patchify = nn.Sequential(
+                nn.Conv2d(hidden_channels, emb_dim,
+                          kernel_size=self.threshold_factor, stride=self.threshold_factor),
+                nn.LeakyReLU(0.2)
+            )
+            self.unpatchify = nn.Sequential(
+                nn.ConvTranspose2d(emb_dim, hidden_channels,
+                                   kernel_size=self.threshold_factor, stride=self.threshold_factor),
+                nn.LeakyReLU(0.2)
+            )
 
         self.upsampler = UpsamplingLayer(in_channels, hidden_channels, style_dim=style_dim,
                                          hidden_channels=hidden_channels, bank_size=bank_size)
         self.out_conv = AdaptiveConv2d(hidden_channels, out_channels, style_dim=style_dim,
-                                       kernel_size=3, stride=1, padding=1, bank_size=bank_size)
+                                       kernel_size=1, stride=1, padding=1, bank_size=bank_size)
         self.attn_type = attn_type
         voxel_former_attn_type = attn_type if attn_type != AttentionType.none else AttentionType.attention
         self.voxel_former = VoxelFormer(voxel_size, voxel_size, emb_dim=emb_dim, nhead=nhead,
@@ -121,6 +145,7 @@ class GeneratorLayer(nn.Module):
             nn.GELU(),
             nn.Linear(4 * emb_dim, emb_dim)
         )
+        self.activation = nn.LeakyReLU(0.2)
 
     def self_attention(self, x):
         if self.attn_type != AttentionType.none:
@@ -161,6 +186,7 @@ class GeneratorLayer(nn.Module):
         if self.need_patching:
             features = self.unpatchify(features)
         features = self.out_conv(features, style)
+        features = self.activation(features)
         out = self.voxel_former(x)
 
         return out, features

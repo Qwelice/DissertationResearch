@@ -15,10 +15,10 @@ class Predictor(nn.Module):
         self.out_channels = out_channels
         self.voxel_size = voxel_size
         self.style_dim = style_dim
-        self.conv_1 = AdaptiveConv2d(in_channels, out_channels, style_dim, kernel_size=1, stride=1)
-        self.conv_2 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
-        self.conv_3 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
-        self.conv_4 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1)
+        self.conv_1 = AdaptiveConv2d(in_channels, out_channels, style_dim, kernel_size=1, stride=1, bank_size=4)
+        self.conv_2 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1, bank_size=4)
+        # self.conv_3 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1, bank_size=4)
+        # self.conv_4 = AdaptiveConv2d(out_channels, out_channels, style_dim, kernel_size=1, stride=1, bank_size=4)
         self.unconditional = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
         self.fc = nn.Linear(out_channels * voxel_size**2, 1)
         self.leaky = nn.LeakyReLU(0.2)
@@ -26,9 +26,9 @@ class Predictor(nn.Module):
     def forward(self, x, style):
         conditional = self.leaky(self.conv_1(x, style))
         conditional = self.leaky(self.conv_2(conditional, style))
-        conditional = self.leaky(self.conv_3(conditional, style))
-        conditional = self.leaky(self.conv_4(conditional, style))
-        unconditional = self.unconditional(x)
+        # conditional = self.leaky(self.conv_3(conditional, style))
+        # conditional = self.leaky(self.conv_4(conditional, style))
+        unconditional = self.leaky(self.unconditional(x))
         x = conditional + unconditional
         x = torch.flatten(x, start_dim=1)
         x = self.fc(x)

@@ -20,6 +20,7 @@ class AdaptiveConv2d(nn.Module):
         self.modulation_fc = nn.Linear(style_dim, in_channels)
         self._kernels = nn.Parameter(torch.randn(bank_size, out_channels, in_channels,
                                                  kernel_size, kernel_size))
+        self.bias = nn.Parameter(torch.randn(out_channels), requires_grad=True)
 
     def forward(self, x, style):
         bs, c_in, h, w = x.shape
@@ -34,4 +35,6 @@ class AdaptiveConv2d(nn.Module):
         x = x.reshape(1, bs * c_in, h, w)
         out = torch.conv2d(x, bank_weights, stride=self.stride, padding=self.padding, groups=bs)
         out = out.view(bs, self.out_channels, out.shape[-2], out.shape[-1])
+        bias = self.bias.view(1, -1, 1, 1)
+        out = out + bias
         return out

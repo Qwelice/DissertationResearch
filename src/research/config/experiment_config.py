@@ -8,7 +8,7 @@ from research.utils.enums import OptimizerType, WeightsInitType
 from research.utils.io import root_dir
 
 ROOT_DIR = root_dir()
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 0.0025
 
 
 experiment_cfg = EasyDict()
@@ -34,13 +34,13 @@ experiment_cfg.logs.textual.save_dir = os.path.join(ROOT_DIR, 'logs', 'internal'
 
 # Training params
 experiment_cfg.train = EasyDict()
-experiment_cfg.train.batch_size = 32
+experiment_cfg.train.batch_size = 16
 experiment_cfg.train.learning_rate = LEARNING_RATE
 experiment_cfg.train.shuffle = True
 experiment_cfg.train.num_workers = 3
 experiment_cfg.train.drop_last = True
 experiment_cfg.train.num_epochs = 15
-experiment_cfg.train.warmup_steps = 1000
+experiment_cfg.train.warmup_steps = 700
 experiment_cfg.train.warmup_max = 600
 experiment_cfg.train.accelerator = 'gpu'
 experiment_cfg.train.preferred_device = 'cuda'
@@ -48,7 +48,7 @@ experiment_cfg.train.log_every_n_steps = 25
 
 # Evaluation params
 experiment_cfg.eval = EasyDict()
-experiment_cfg.eval.batch_size = 32
+experiment_cfg.eval.batch_size = 16
 experiment_cfg.eval.shuffle = False
 experiment_cfg.eval.num_workers = 3
 experiment_cfg.eval.drop_last = True
@@ -59,9 +59,9 @@ experiment_cfg.optimizer = {
     'type': OptimizerType.adamw,
     'params': {
         'params': None,
-        'betas': [0.9, 0.999],
+        'betas': [0.0, 0.99],
         'lr': LEARNING_RATE,
-        'weight_decay': 1e-4
+        'weight_decay': 1e-5
     }
 }
 
@@ -88,18 +88,18 @@ experiment_cfg.generator.optimizer = {
     'type': OptimizerType.adamw,
     'params': {
         'params': None,
-        'betas': [0.9, 0.999],
+        'betas': [0.0, 0.99],
         'lr': LEARNING_RATE,
-        'weight_decay': 1e-4
+        'weight_decay': 1e-5
     }
 }
 experiment_cfg.discriminator.optimizer = {
     'type': OptimizerType.adamw,
     'params': {
         'params': None,
-        'betas': [0.9, 0.999],
+        'betas': [0.0, 0.99],
         'lr': LEARNING_RATE,
-        'weight_decay': 1e-4
+        'weight_decay': 1e-5
     }
 }
 
@@ -113,7 +113,7 @@ experiment_cfg.tensorflow.experiment_name = 'GAMMA-modelnet10'
 
 # Checkpoint params
 experiment_cfg.ckpt_dir = os.path.join(ROOT_DIR, 'models', 'GAMMA-modelnet10')
-experiment_cfg.monitor = 'val_dis_acc'
+experiment_cfg.monitor = 'val_iou'
 experiment_cfg.mode = 'max'
 experiment_cfg.save_last = True
 experiment_cfg.save_top_k = 10

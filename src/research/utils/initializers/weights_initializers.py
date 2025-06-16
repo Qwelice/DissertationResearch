@@ -4,7 +4,7 @@ import torch.nn.init as init
 
 def init_weights_normal(m):
     if isinstance(m, (nn.Linear, nn.Conv2d)):
-        init.normal_(m.weight, mean=0.0, std=0.02)
+        init.normal_(m.weight, mean=0.0, std=1.0)
         if m.bias is not None:
             init.zeros_(m.bias)
 

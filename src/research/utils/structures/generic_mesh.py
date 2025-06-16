@@ -76,7 +76,6 @@ class GenericMesh:
         self.device = device
         self.verts = self.verts.to(self.device)
         self.faces = self.faces.to(self.device)
-        self.color = self.color.to(self.device)
         return self
 
     def copy(self: T) -> T:

@@ -10,12 +10,12 @@ from torch.utils.data import default_collate
 from research.data.datasets.modelnet10 import Modelnet10Dataset
 from research.engine.schedulers.cosine_warmup import CosineWarmupScheduler
 from research.modeling.losses.multiscale_loss import MultiScaleLoss
-from research.modeling.losses.multiscale_mse import MultiScaleMSE
+from research.modeling.losses.multiscale_gen_loss import MultiScaleGenLoss
 from research.modeling.models.discriminator import Discriminator
 from research.modeling.models.generator import Generator
 from research.utils.constants import OptimizersInitMap, WeightsInitMap
 from research.utils.enums import SetType, WeightsInitType
-from research.utils.metrics import discriminator_accuracy
+from research.utils.metrics import discriminator_accuracy, compute_iou_voxels
 
 warnings.filterwarnings('ignore', category=UserWarning, module='pytorch_lightning')
 
@@ -31,13 +31,16 @@ class MainModule(pl.LightningModule):
         self.discriminator = Discriminator(model_cfg)
         self.internal_set = Modelnet10Dataset(config.data_cfg, SetType.train)
         self.mscale_loss = MultiScaleLoss()
-        self.mse = MultiScaleMSE()
-        init_fn = WeightsInitMap[WeightsInitType.normal]
+        self.msl = MultiScaleGenLoss(activation='mse')
+        init_fn = WeightsInitMap[WeightsInitType.kaiming_normal]
         self.generator.apply(init_fn)
         self.discriminator.apply(init_fn)
 
-    def log_voxels(self, voxels, epoch: int, batch_idx: int, state: str, image: torch.Tensor):
-        self.loggers[1].log_voxels(voxels, epoch, batch_idx, state, image)
+    def log_voxels(self, voxels, target, epoch: int, batch_idx: int, state: str, image: torch.Tensor):
+        self.loggers[1].log_voxels(voxels, target, epoch, batch_idx, state, image)
+
+    def log_grad_flow(self, named_parameters, params_tag: str, state: str, epoch: int, batch_idx: int):
+        self.loggers[1].log_grad_flow(named_parameters, params_tag, state, epoch, batch_idx)
 
     def generator_forward(self, image: torch.Tensor) -> Tuple[torch.Tensor]:
         descriptor = self.generator.get_descriptor(image)
@@ -102,39 +105,49 @@ class MainModule(pl.LightningModule):
         # ==================
         # Discriminator part
         # ==================
-        dis_opt.zero_grad()
-        real_preds = self.discriminator_forward(image, voxel)
-        fake_preds = self.discriminator_forward(image, fakes_detached)
-        real_preds_miss = self.discriminator_forward(miss_image, voxel)
-        fake_preds_miss = self.discriminator_forward(miss_image, fakes_detached)
-        dis_loss = self.mscale_loss.D_loss(real_preds, fake_preds, real_preds_miss, fake_preds_miss)
-        self.manual_backward(dis_loss)
-        dis_opt.step()
-        dis_sch.step()
-        real_dis_acc = discriminator_accuracy(real_preds, is_real=True)
-        fake_dis_acc = discriminator_accuracy(fake_preds, is_real=False)
-        dis_acc = (real_dis_acc + fake_dis_acc) / 2
+        if batch_idx % 2 == 0:
+            dis_opt.zero_grad()
+            real_preds = self.discriminator_forward(image, voxel)
+            fake_preds = self.discriminator_forward(image, fakes_detached)
+            real_preds_miss = self.discriminator_forward(miss_image, voxel)
+            fake_preds_miss = self.discriminator_forward(miss_image, fakes_detached)
+            dis_loss = self.mscale_loss.D_loss(real_preds, fake_preds, real_preds_miss, fake_preds_miss)
+            self.manual_backward(dis_loss)
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), max_norm=1.0)
+            dis_opt.step()
+            dis_sch.step()
+            real_dis_acc = discriminator_accuracy(real_preds, is_real=True)
+            fake_dis_acc = discriminator_accuracy(fake_preds, is_real=False)
+            dis_acc = (real_dis_acc + fake_dis_acc) / 2
+            self.log('train_dis_acc', dis_acc, prog_bar=False, on_step=True, on_epoch=True)
+            self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=False)
+            self.log('train_dis_loss_total', dis_loss.item(), prog_bar=False, on_step=False, on_epoch=True)
 
         # ==============
         # Generator part
         # ==============
         gen_opt.zero_grad()
         fake_preds = self.discriminator_forward(image, fakes)
-        gen_loss = self.mscale_loss.G_loss(fake_preds) + self.mse(voxel, fakes)
+        gen_loss = self.mscale_loss.G_loss(fake_preds) + self.msl(voxel, fakes)
         self.manual_backward(gen_loss)
+        torch.nn.utils.clip_grad_norm_(self.generator.parameters(), max_norm=1.0)
         gen_opt.step()
         gen_sch.step()
+
+        iou = compute_iou_voxels(fakes, voxel)
 
         # ====
         # Logs
         # ====
-        self.log('train_dis_acc', dis_acc, prog_bar=False, on_step=True, on_epoch=True)
-        self.log('train_dis_loss', dis_loss.item(), prog_bar=True, on_step=True, on_epoch=False)
+        self.log('train_iou', iou, prog_bar=False, on_step=True, on_epoch=True)
         self.log('train_gen_loss', gen_loss.item(), prog_bar=True, on_step=True, on_epoch=False)
-        self.log('train_dis_loss_total', dis_loss.item(), prog_bar=False, on_step=False, on_epoch=True)
         self.log('train_gen_loss_total', gen_loss.item(), prog_bar=False, on_step=False, on_epoch=True)
+        if self.global_step % 100 == 0:
+            self.log_grad_flow(self.discriminator.named_parameters(), 'discriminator', 'train', self.current_epoch,
+                               batch_idx)
+            self.log_grad_flow(self.generator.named_parameters(), 'generator', 'train', self.current_epoch, batch_idx)
         if batch_idx == 0 or self.trainer.is_last_batch:
-            self.log_voxels(fakes, self.current_epoch, batch_idx, 'train', image)
+            self.log_voxels(fakes, voxel, self.current_epoch, batch_idx, 'train', image)
 
     def validation_step(self, batch, batch_idx) -> STEP_OUTPUT:
         image = batch['image']
@@ -162,13 +175,15 @@ class MainModule(pl.LightningModule):
         # Generator part
         # ==============
         fake_preds = self.discriminator_forward(image, fakes)
-        gen_loss = self.mscale_loss.G_loss(fake_preds) + self.mse(voxel, fakes)
+        gen_loss = self.mscale_loss.G_loss(fake_preds) + self.msl(voxel, fakes)
 
+        iou = compute_iou_voxels(fakes, voxel)
         # ====
         # Logs
         # ====
+        self.log('val_iou', iou, prog_bar=False, on_step=True, on_epoch=True)
         self.log('val_dis_acc', dis_acc, prog_bar=False, on_step=True, on_epoch=True)
         self.log('val_dis_loss', dis_loss.item(), prog_bar=False, on_step=True, on_epoch=True)
         self.log('val_gen_loss', gen_loss.item(), prog_bar=False, on_step=True, on_epoch=True)
         if batch_idx == 0 or batch_idx == self.trainer.num_val_batches[0] - 1:
-            self.log_voxels(fakes, self.current_epoch, batch_idx, 'eval', image)
+            self.log_voxels(fakes, voxel, self.current_epoch, batch_idx, 'eval', image)

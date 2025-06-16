@@ -63,8 +63,8 @@ from research.utils.initializers.layer_initializers import dropout
 #                    'voxel_size': int,
 #                    'style_dim': int>
 
-STYLE_DIM = 512
-DESCRIPTOR_DIM = 512
+STYLE_DIM = 256
+DESCRIPTOR_DIM = 256
 LATENT_DIM = 128
 
 model_cfg = EasyDict()
@@ -114,7 +114,7 @@ model_cfg.image_encoder.layers = [
     {
         'type': LayerType.L2Encoder,
         'params': {
-            'num_layers': 6
+            'num_layers': 4
         },
         'layers': [
             {
@@ -141,7 +141,7 @@ model_cfg.mapping_net.layers = [
         'type': LayerType.Linear,
         'params': {
             'in_features': DESCRIPTOR_DIM + LATENT_DIM,
-            'out_features': 256
+            'out_features': 128
         }
     },
     {
@@ -151,18 +151,7 @@ model_cfg.mapping_net.layers = [
     {
         'type': LayerType.Linear,
         'params': {
-            'in_features': 256,
-            'out_features': 512
-        }
-    },
-    {
-        'type': LayerType.ReLU,
-        'params': {}
-    },
-    {
-        'type': LayerType.Linear,
-        'params': {
-            'in_features': 512,
+            'in_features': 128,
             'out_features': STYLE_DIM
         }
     }
@@ -171,8 +160,6 @@ model_cfg.mapping_net.layers = [
 
 model_cfg.generator = EasyDict()
 model_cfg.generator.base_features = {
-    'weights_init': WeightsInitType.xavier_normal,
-    'weights_init_params': {},
     'shape': (512, 2, 2)
 }
 model_cfg.generator.layers = [
@@ -188,7 +175,8 @@ model_cfg.generator.layers = [
             'style_dim': STYLE_DIM,
             'decoding_layers': 4,
             'attn_type': AttentionType.none,
-            'dropout': 0.4
+            'dropout': 0.2,
+            'bank_size': 6
         }
     },
     {
@@ -203,7 +191,8 @@ model_cfg.generator.layers = [
             'style_dim': STYLE_DIM,
             'decoding_layers': 4,
             'attn_type': AttentionType.attention,
-            'dropout': 0.4
+            'dropout': 0.2,
+            'bank_size': 6
         }
     },
     {
@@ -217,25 +206,9 @@ model_cfg.generator.layers = [
             'emb_dim': DESCRIPTOR_DIM,
             'style_dim': STYLE_DIM,
             'decoding_layers': 4,
-            'attn_type': AttentionType.attention,
-            'dropout': 0.4
-        }
-    },
-    {
-        'type': LayerType.GeneratorLayer,
-        'params': {
-            'voxel_size': 32,
-            'in_channels': 64,
-            'hidden_channels': DESCRIPTOR_DIM,
-            'out_channels': 32,
-            'nhead': 8,
-            'emb_dim': DESCRIPTOR_DIM,
-            'style_dim': STYLE_DIM,
-            'decoding_layers': 4,
             'attn_type': AttentionType.none,
-            'dropout': 0.4,
-            'need_patching': True,
-            'patch_size': 8
+            'dropout': 0.2,
+            'bank_size': 6
         }
     }
 ]
@@ -245,42 +218,34 @@ model_cfg.discriminator.layers = [
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
-            'voxel_size': 32,
-            'out_channels': 32,
-            'emb_dim': DESCRIPTOR_DIM
-        }
-    },
-    {
-        'type': LayerType.DiscriminatorLayer,
-        'params': {
             'voxel_size': 16,
-            'out_channels': 64,
+            'out_channels': 32,
             'emb_dim': DESCRIPTOR_DIM,
-            'dropout': 0.4,
+            'dropout': 0.5,
             'attn_type': AttentionType.l2attention,
-            'nhead': 8
+            'nhead': 4
         }
     },
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
             'voxel_size': 8,
-            'out_channels': 128,
+            'out_channels': 64,
             'emb_dim': DESCRIPTOR_DIM,
-            'dropout': 0.4,
+            'dropout': 0.5,
             'attn_type': AttentionType.l2attention,
-            'nhead': 8
+            'nhead': 4
         }
     },
     {
         'type': LayerType.DiscriminatorLayer,
         'params': {
             'voxel_size': 4,
-            'out_channels': 256,
+            'out_channels': 128,
             'emb_dim': DESCRIPTOR_DIM,
-            'dropout': 0.4,
+            'dropout': 0.5,
             'attn_type': AttentionType.l2attention,
-            'nhead': 8
+            'nhead': 4
         }
     }
 ]
@@ -291,7 +256,7 @@ model_cfg.discriminator.predictors = [
         'params': {
             'in_channels': 32,
             'out_channels': 64,
-            'voxel_size': 16,
+            'voxel_size': 8,
             'style_dim': STYLE_DIM
         }
     },
@@ -300,7 +265,7 @@ model_cfg.discriminator.predictors = [
         'params': {
             'in_channels': 64,
             'out_channels': 128,
-            'voxel_size': 8,
+            'voxel_size': 4,
             'style_dim': STYLE_DIM
         }
     },
@@ -309,15 +274,6 @@ model_cfg.discriminator.predictors = [
         'params': {
             'in_channels': 128,
             'out_channels': 256,
-            'voxel_size': 4,
-            'style_dim': STYLE_DIM
-        }
-    },
-    {
-        'type': LayerType.Predictor,
-        'params': {
-            'in_channels': 256,
-            'out_channels': 512,
             'voxel_size': 2,
             'style_dim': STYLE_DIM
         }

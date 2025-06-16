@@ -20,11 +20,8 @@ class Generator(nn.Module):
 
     def _init_base_features_(self) -> nn.Parameter:
         cfg = self.config.generator
-        init_fn = ParametersInitMap[cfg.base_features['weights_init']]
-        init_params = cfg.base_features['weights_init_params']
         base_shape = cfg.base_features['shape']
-        base_features = nn.Parameter(torch.zeros(1, *base_shape))
-        init_fn(base_features, **init_params)
+        base_features = nn.Parameter(torch.ones(1, *base_shape), requires_grad=True)
         return base_features
 
     def _init_layers_(self) -> nn.ModuleList:
@@ -52,7 +49,7 @@ class Generator(nn.Module):
     def forward(self, style, t_local):
         bs, _ = style.shape
         device = style.device
-        x = self.base_features.expand(bs, -1, -1, -1).contiguous().to(device)
+        x = self.base_features.repeat(bs, 1, 1, 1).contiguous().to(device)
         outs = []
         for layer in self.layers:
             out, x = layer(x, style, t_local)
